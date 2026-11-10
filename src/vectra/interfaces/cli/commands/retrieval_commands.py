@@ -21,7 +21,7 @@ from vectra.bounded_context.retrieval.application.handlers.queries import (
     ListCollectionsQuery,
     SearchCollectionQuery,
 )
-from vectra.exceptions import ConfirmationRequiredError, ExitCodeEnum
+from vectra.exceptions import ConfirmationRequiredError, ExitCodeEnum, NewRootRequiresRebuildError
 from vectra.interfaces.cli import bootstrap, output
 from vectra.interfaces.cli.options import JsonOption
 from vectra.interfaces.cli.responses import (
@@ -62,12 +62,25 @@ def sync(
         bool,
         typer.Option(
             "--rebuild",
-            help="Drop the collection and recreate it with the current model and this root.",
+            help="Drop the collection and recreate it with the current model (keeps its root).",
+        ),
+    ] = False,
+    new_root: Annotated[
+        bool,
+        typer.Option(
+            "--new-root",
+            help="With --rebuild, rebind the collection to this root instead of keeping its own.",
         ),
     ] = False,
     as_json: JsonOption = False,
 ) -> int:
     """Index the changes of ROOT into collection NAME (created on first use). Exit 1 if any file failed."""
+    if new_root and not rebuild:
+        raise NewRootRequiresRebuildError(
+            "--new-root only applies together with --rebuild.",
+            {"new_root": True, "rebuild": False},
+            next_steps=["Add --rebuild, or drop --new-root."],
+        )
     handlers = bootstrap.build_retrieval(cli_state(context).environment())
     result: SyncResultDTO = asyncio.run(
         handlers.sync.handle(
@@ -79,6 +92,7 @@ def sync(
                 dry_run=dry_run,
                 allow_mass_delete=allow_mass_delete,
                 rebuild=rebuild,
+                allow_new_root=new_root,
             )
         )
     )

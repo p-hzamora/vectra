@@ -10,7 +10,11 @@ from .base import (
 )
 from .core_errors import InvalidConfigurationError
 from .exit_code_enum import ExitCodeEnum
-from .interface_errors import ConfirmationRequiredError, SkillGuideNotFoundError
+from .interface_errors import (
+    ConfirmationRequiredError,
+    NewRootRequiresRebuildError,
+    SkillGuideNotFoundError,
+)
 from .retrieval_errors import (
     ChunkingFailedError,
     CollectionNotFoundError,
@@ -48,6 +52,7 @@ __all__ = [
     "InvalidSearchQueryError",
     "InvalidSourcePathError",
     "MassDeleteRefusedError",
+    "NewRootRequiresRebuildError",
     "SkillGuideNotFoundError",
     "SourceRootInvalidError",
     "VectorStoreError",

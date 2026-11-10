@@ -264,7 +264,27 @@ def test_rebuild_is_the_way_out_of_a_profile_mismatch(
     assert collections[0]["model_id"] == "other-model"
 
 
-def test_rebuild_rebinds_the_root(
+def test_rebuild_refuses_another_root_without_new_root(
+    capsys: pytest.CaptureFixture[str], docs: Path, tmp_path: Path
+) -> None:
+    assert run(["sync", "notes", str(docs), "--json"]) == 0
+    other = tmp_path / "other"
+    other.mkdir()
+    capsys.readouterr()
+    assert run(["sync", "notes", str(other), "--rebuild", "--json"]) == 1
+    error = _error(capsys)
+    assert error["code"] == "RETRIEVAL_102_SOURCE_ROOT_INVALID"
+    assert "--new-root" in error["next_steps"][0]  # type: ignore[index]
+
+
+def test_new_root_without_rebuild_is_a_usage_error(
+    capsys: pytest.CaptureFixture[str], docs: Path
+) -> None:
+    assert run(["sync", "notes", str(docs), "--new-root", "--json"]) == 2
+    assert _error(capsys)["code"] == "INTERFACE_003_NEW_ROOT_REQUIRES_REBUILD"
+
+
+def test_rebuild_with_new_root_rebinds_the_root(
     capsys: pytest.CaptureFixture[str], docs: Path, tmp_path: Path
 ) -> None:
     assert run(["sync", "notes", str(docs), "--json"]) == 0
@@ -272,5 +292,5 @@ def test_rebuild_rebinds_the_root(
     other.mkdir()
     (other / "x.md").write_text("# X\nbody", encoding="utf-8")
     capsys.readouterr()
-    assert run(["sync", "notes", str(other), "--rebuild", "--json"]) == 0
+    assert run(["sync", "notes", str(other), "--rebuild", "--new-root", "--json"]) == 0
     assert _result(capsys)["added"] == ["x.md"]

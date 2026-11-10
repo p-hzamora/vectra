@@ -20,9 +20,12 @@ not covered here.
   `--exclude` globs to change that. Hidden folders and symlinks are skipped. Re-running is safe:
   unchanged files are not touched. Options:
   - `--dry-run`: report what would be added/updated/deleted and write nothing.
-  - `--rebuild`: drop the collection and recreate it with the current embedding model and this
-    root, then index everything (the way out of `RETRIEVAL_003_INDEX_PROFILE_MISMATCH` or a root
-    change). With `--dry-run` nothing is dropped.
+  - `--rebuild`: drop the collection and recreate it with the current embedding model, then index
+    everything (the way out of `RETRIEVAL_003_INDEX_PROFILE_MISMATCH`). It keeps the collection's
+    root: another root fails with `RETRIEVAL_102_SOURCE_ROOT_INVALID` unless `--new-root` is given.
+    With `--dry-run` nothing is dropped.
+  - `--new-root`: with `--rebuild`, rebind the collection to this root. Without `--rebuild` it exits
+    2 (`INTERFACE_003_NEW_ROOT_REQUIRES_REBUILD`).
   - `--allow-mass-delete`: needed when more than half of the indexed documents disappeared
     (`RETRIEVAL_103_MASS_DELETE_REFUSED` otherwise; check the root first). With `--dry-run` it is
     not refused: the plan is returned with a `result.warnings` entry saying the real sync would be.

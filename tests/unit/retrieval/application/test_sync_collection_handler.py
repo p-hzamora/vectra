@@ -273,11 +273,11 @@ async def test_embedder_returning_the_wrong_dimension_fails_the_file() -> None:
     assert {item.code for item in result.failed} == {"RETRIEVAL_005_EMBEDDING_DIMENSION_MISMATCH"}
 
 
-async def test_rebuild_recreates_the_collection_with_new_profile_and_root() -> None:
+async def test_rebuild_recreates_the_collection_with_new_profile_and_new_root() -> None:
     rig = Rig()
     await rig.sync()
     rig.embedder = FakeEmbedder(model_id="another-model")
-    result = await rig.sync(rebuild=True, root="/new/root")
+    result = await rig.sync(rebuild=True, allow_new_root=True, root="/new/root")
     assert (result.created, result.added, result.unchanged) == (True, ("a.md", "b.md"), 0)
     collection = rig.store.collections["docs"]
     assert collection.profile.model_id == "another-model"
@@ -307,3 +307,28 @@ async def test_rebuild_dry_run_drops_nothing() -> None:
 async def test_rebuild_of_a_new_collection_just_creates_it() -> None:
     result = await Rig().sync(rebuild=True)
     assert (result.created, result.added) == (True, ("a.md", "b.md"))
+
+
+async def test_rebuild_keeps_the_root_and_refuses_another_one() -> None:
+    rig = Rig()
+    await rig.sync()
+    with pytest.raises(SourceRootInvalidError) as raised:
+        await rig.sync(rebuild=True, root="/new/root")
+    assert raised.value.error_code == "RETRIEVAL_102_SOURCE_ROOT_INVALID"
+    assert "--new-root" in raised.value.next_steps[0]
+    assert rig.store.collections["docs"].source_root.value == ROOT
+    assert len(rig.store.documents) == 2
+
+
+async def test_rebuild_dry_run_with_another_root_is_refused_too() -> None:
+    rig = Rig()
+    await rig.sync()
+    with pytest.raises(SourceRootInvalidError):
+        await rig.sync(rebuild=True, dry_run=True, root="/new/root")
+
+
+async def test_rebuild_with_the_same_root_needs_no_new_root_flag() -> None:
+    rig = Rig()
+    await rig.sync()
+    result = await rig.sync(rebuild=True)
+    assert result.created is True

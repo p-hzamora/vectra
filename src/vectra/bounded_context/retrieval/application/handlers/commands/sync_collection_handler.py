@@ -56,7 +56,8 @@ class SyncCollectionCommand(FrozenObject):
         exclude: Glob patterns to skip.
         dry_run: Plan only; write nothing.
         allow_mass_delete: Permit deleting more than half of the indexed documents.
-        rebuild: Drop the collection and recreate it with the current profile and root.
+        rebuild: Drop the collection and recreate it with the current profile.
+        allow_new_root: With `rebuild`, permit ROOT to differ from the collection's root.
     """
 
     collection: str
@@ -66,6 +67,7 @@ class SyncCollectionCommand(FrozenObject):
     dry_run: bool = False
     allow_mass_delete: bool = False
     rebuild: bool = False
+    allow_new_root: bool = False
 
 
 class SyncCollectionHandler(IHandler[SyncCollectionCommand, SyncResultDTO]):
@@ -101,7 +103,8 @@ class SyncCollectionHandler(IHandler[SyncCollectionCommand, SyncResultDTO]):
 
         Raises:
             SourceRootInvalidError: The root is missing (nothing is touched).
-            SourceRootInvalidError: The collection is bound to another root.
+            SourceRootInvalidError: The collection is bound to another root (also on rebuild
+                unless `allow_new_root`).
             EmbeddingProfileMismatchError: The configured model differs from the collection's.
             MassDeleteRefusedError: More than half of the indexed documents would be deleted
                 (not raised on a dry run; it becomes a warning).
@@ -112,9 +115,12 @@ class SyncCollectionHandler(IHandler[SyncCollectionCommand, SyncResultDTO]):
             file async for file in self._source.scan(action.root, action.include, action.exclude)
         ]
         collection: Collection | None = await self._existing_collection(name)
-        if collection is not None and not action.rebuild:
-            collection.assert_same_root(root)
-            collection.assert_compatible(self._embedder.profile)
+        if collection is not None:
+            if not action.rebuild:
+                collection.assert_same_root(root)
+                collection.assert_compatible(self._embedder.profile)
+            elif not action.allow_new_root:
+                collection.assert_same_root(root, rebuild=True)
 
         failures: dict[str, FileFailureDTO] = {}
         scanned: list[DocumentFingerprint] = self._fingerprints(files, failures)

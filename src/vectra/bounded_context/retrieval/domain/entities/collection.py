@@ -35,8 +35,12 @@ class Collection:
         """
         profile.assert_matches(self.profile, self.name.value)
 
-    def assert_same_root(self, root: SourceRoot) -> None:
+    def assert_same_root(self, root: SourceRoot, *, rebuild: bool = False) -> None:
         """Fail unless `root` is the root this collection was created for.
+
+        Args:
+            root: Folder being synced.
+            rebuild: The sync is a rebuild; the next steps then mention `--new-root`.
 
         Raises:
             SourceRootInvalidError: The collection is bound to another root.
@@ -49,7 +53,14 @@ class Collection:
                     "bound_root": self.source_root.value,
                     "given_root": root.value,
                 },
-                next_steps=[f"Sync {self.source_root.value}, or use a different collection name."],
+                next_steps=(
+                    [
+                        f"Rebuild {self.source_root.value}, or pass --new-root to rebind "
+                        f"the collection to {root.value}."
+                    ]
+                    if rebuild
+                    else [f"Sync {self.source_root.value}, or use a different collection name."]
+                ),
             )
 
     def __eq__(self, other: object) -> bool:
