@@ -14,7 +14,12 @@ from pydantic import ValidationError
 from vectra.exceptions import InvalidConfigurationError
 from vectra.shared_kernel.domain import JsonValue
 
-from .configurations import AppBaseSettings, RuntimeSettings, default_env_file
+from .configurations import (
+    AppBaseSettings,
+    RetrievalSettings,
+    RuntimeSettings,
+    default_env_file,
+)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -24,10 +29,12 @@ class Environment:
     Attributes:
         env_file: The `.env` file that was read (it may not exist).
         runtime: Data locations.
+        retrieval: Embedding model and sync retries.
     """
 
     env_file: Path
     runtime: RuntimeSettings
+    retrieval: RetrievalSettings
 
 
 def load_environment(env_file: Path | None = None) -> Environment:
@@ -47,13 +54,14 @@ def load_environment(env_file: Path | None = None) -> Environment:
     path: Path = (env_file or default_env_file()).expanduser()
     problems: list[JsonValue] = []
     runtime: RuntimeSettings | None = _load(RuntimeSettings, path, problems)
-    if runtime is None:
+    retrieval: RetrievalSettings | None = _load(RetrievalSettings, path, problems)
+    if runtime is None or retrieval is None:
         raise InvalidConfigurationError(
             f"Invalid configuration in {path} or the environment.",
             {"env_file": str(path), "problems": problems},
             next_steps=[f"Fix the variables listed in 'problems' (in {path} or the environment)."],
         )
-    return Environment(env_file=path, runtime=runtime)
+    return Environment(env_file=path, runtime=runtime, retrieval=retrieval)
 
 
 def _load[S: AppBaseSettings](

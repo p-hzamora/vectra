@@ -30,6 +30,9 @@ app: typer.Typer = typer.Typer(
 )
 app.add_typer(commands.skills_app, name="skills")
 app.add_typer(commands.config_app, name="config")
+app.add_typer(commands.collections_app, name="collections")
+app.command("sync")(commands.sync)
+app.command("search")(commands.search)
 
 
 def _print_version(enabled: bool) -> None:
