@@ -1,0 +1,27 @@
+"""Stable identifier of a chunk."""
+
+import re
+
+from pydantic import field_validator
+
+from vectra.exceptions import InvalidRetrievalValueError
+from vectra.utils import FrozenObject
+
+_SHA256: re.Pattern[str] = re.compile(r"^[0-9a-f]{64}$")
+
+
+class ChunkId(FrozenObject):
+    """Lowercase hex SHA-256 derived by `StableChunkIdPolicy`.
+
+    Attributes:
+        value: 64 hex characters.
+    """
+
+    value: str
+
+    @field_validator("value")
+    @classmethod
+    def _valid(cls, value: str) -> str:
+        if not _SHA256.fullmatch(value):
+            raise InvalidRetrievalValueError("A chunk id must be 64 lowercase hex characters.")
+        return value
