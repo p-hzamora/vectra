@@ -132,10 +132,10 @@ class FakeRetrievalStore:
         self.hits: list[ChunkHitDTO] = []
         self.last_search: tuple[str, str | None, int] | None = None
 
-    def uow(self) -> "FakeUnitOfWork":
+    def uow(self) -> FakeUnitOfWork:
         return FakeUnitOfWork(self)
 
-    def manifest(self) -> "FakeManifestReadRepository":
+    def manifest(self) -> FakeManifestReadRepository:
         return FakeManifestReadRepository(self)
 
 
