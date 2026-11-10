@@ -103,7 +103,8 @@ class SyncCollectionHandler(IHandler[SyncCollectionCommand, SyncResultDTO]):
             SourceRootInvalidError: The root is missing (nothing is touched).
             SourceRootInvalidError: The collection is bound to another root.
             EmbeddingProfileMismatchError: The configured model differs from the collection's.
-            MassDeleteRefusedError: More than half of the indexed documents would be deleted.
+            MassDeleteRefusedError: More than half of the indexed documents would be deleted
+                (not raised on a dry run; it becomes a warning).
         """
         name = CollectionName(value=action.collection)
         root = SourceRoot(value=action.root)
@@ -131,7 +132,11 @@ class SyncCollectionHandler(IHandler[SyncCollectionCommand, SyncResultDTO]):
                 for entry in indexed
             ],
         )
-        self._guard_mass_delete(action, plan, len(indexed))
+        refusal: MassDeleteRefusedError | None = self._mass_delete_refusal(
+            action, plan, len(indexed)
+        )
+        if refusal is not None and not action.dry_run:
+            raise refusal
 
         created: bool = collection is None or action.rebuild
         if action.dry_run:
@@ -144,6 +149,14 @@ class SyncCollectionHandler(IHandler[SyncCollectionCommand, SyncResultDTO]):
                 deleted=_values(plan.delete),
                 unchanged=len(plan.unchanged),
                 failed=tuple(failures.values()),
+                warnings=(
+                    ()
+                    if refusal is None
+                    else (
+                        f"The real sync would be refused ({len(plan.delete)} of {len(indexed)} "
+                        "indexed documents would be deleted) without --allow-mass-delete.",
+                    )
+                ),
             )
         if collection is not None and action.rebuild:
             await self._drop_collection(name)
@@ -230,15 +243,15 @@ class SyncCollectionHandler(IHandler[SyncCollectionCommand, SyncResultDTO]):
             )
         return fingerprints
 
-    def _guard_mass_delete(
+    def _mass_delete_refusal(
         self, action: SyncCollectionCommand, plan: SyncPlan, indexed_count: int
-    ) -> None:
+    ) -> MassDeleteRefusedError | None:
         if (
             not action.allow_mass_delete
             and indexed_count > 0
             and len(plan.delete) > indexed_count * MASS_DELETE_RATIO
         ):
-            raise MassDeleteRefusedError(
+            return MassDeleteRefusedError(
                 f"This sync would delete {len(plan.delete)} of {indexed_count} indexed documents.",
                 {
                     "collection": action.collection,
@@ -250,6 +263,7 @@ class SyncCollectionHandler(IHandler[SyncCollectionCommand, SyncResultDTO]):
                     "Repeat with --allow-mass-delete if the deletions are intended.",
                 ],
             )
+        return None
 
     async def _with_retries(
         self, path: SourcePath, operation: Callable[[], Awaitable[int]]

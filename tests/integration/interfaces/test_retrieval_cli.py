@@ -148,6 +148,10 @@ def test_mass_delete_needs_the_flag(capsys: pytest.CaptureFixture[str], docs: Pa
     (docs / "sub" / "dogs.md").unlink()
     assert run(["sync", "notes", str(docs), "--json"]) == 1
     assert _error(capsys)["code"] == "RETRIEVAL_103_MASS_DELETE_REFUSED"
+    assert run(["sync", "notes", str(docs), "--dry-run", "--json"]) == 0
+    dry = _result(capsys)
+    assert dry["deleted"] == ["cats.md", "sub/dogs.md"]
+    assert "--allow-mass-delete" in dry["warnings"][0]
     assert run(["sync", "notes", str(docs), "--allow-mass-delete", "--json"]) == 0
     assert _result(capsys)["deleted"] == ["cats.md", "sub/dogs.md"]
 

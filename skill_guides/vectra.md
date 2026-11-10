@@ -24,7 +24,8 @@ not covered here.
     root, then index everything (the way out of `RETRIEVAL_003_INDEX_PROFILE_MISMATCH` or a root
     change). With `--dry-run` nothing is dropped.
   - `--allow-mass-delete`: needed when more than half of the indexed documents disappeared
-    (`RETRIEVAL_103_MASS_DELETE_REFUSED` otherwise; check the root first).
+    (`RETRIEVAL_103_MASS_DELETE_REFUSED` otherwise; check the root first). With `--dry-run` it is
+    not refused: the plan is returned with a `result.warnings` entry saying the real sync would be.
   - A file that keeps failing is retried `VECTRA_SYNC_MAX_RETRIES` times (default 2), then listed in
     `result.failed` (`path`, `code`, `message`, `attempts`) while the rest continues; the exit code
     is 1 if any file failed. `result.warnings` carries non-fatal notes such as ignored malformed

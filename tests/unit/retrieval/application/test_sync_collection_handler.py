@@ -159,11 +159,21 @@ async def test_deleting_more_than_half_requires_the_flag() -> None:
         await rig.sync()
     assert raised.value.error_code == "RETRIEVAL_103_MASS_DELETE_REFUSED"
     assert len(rig.store.documents) == 2
-    with pytest.raises(MassDeleteRefusedError):
-        await rig.sync(dry_run=True)
     result = await rig.sync(allow_mass_delete=True)
     assert result.deleted == ("a.md", "b.md")
     assert rig.store.documents == {}
+
+
+async def test_dry_run_warns_instead_of_refusing_a_mass_delete() -> None:
+    rig = Rig()
+    await rig.sync()
+    rig.source.files.clear()
+    result = await rig.sync(dry_run=True)
+    assert result.deleted == ("a.md", "b.md")
+    assert len(result.warnings) == 1
+    assert "2 of 2" in result.warnings[0]
+    assert "--allow-mass-delete" in result.warnings[0]
+    assert len(rig.store.documents) == 2
 
 
 async def test_deleting_exactly_half_is_allowed() -> None:
