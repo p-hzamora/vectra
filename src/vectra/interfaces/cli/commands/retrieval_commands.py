@@ -58,6 +58,13 @@ def sync(
             "--allow-mass-delete", help="Allow deleting more than half of the indexed documents."
         ),
     ] = False,
+    rebuild: Annotated[
+        bool,
+        typer.Option(
+            "--rebuild",
+            help="Drop the collection and recreate it with the current model and this root.",
+        ),
+    ] = False,
     as_json: JsonOption = False,
 ) -> int:
     """Index the changes of ROOT into collection NAME (created on first use). Exit 1 if any file failed."""
@@ -71,6 +78,7 @@ def sync(
                 exclude=tuple(exclude or ()),
                 dry_run=dry_run,
                 allow_mass_delete=allow_mass_delete,
+                rebuild=rebuild,
             )
         )
     )

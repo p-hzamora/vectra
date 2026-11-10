@@ -20,6 +20,9 @@ not covered here.
   `--exclude` globs to change that. Hidden folders and symlinks are skipped. Re-running is safe:
   unchanged files are not touched. Options:
   - `--dry-run`: report what would be added/updated/deleted and write nothing.
+  - `--rebuild`: drop the collection and recreate it with the current embedding model and this
+    root, then index everything (the way out of `RETRIEVAL_003_INDEX_PROFILE_MISMATCH` or a root
+    change). With `--dry-run` nothing is dropped.
   - `--allow-mass-delete`: needed when more than half of the indexed documents disappeared
     (`RETRIEVAL_103_MASS_DELETE_REFUSED` otherwise; check the root first).
   - A file that keeps failing is retried `VECTRA_SYNC_MAX_RETRIES` times (default 2), then listed in

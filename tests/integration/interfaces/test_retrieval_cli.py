@@ -240,3 +240,33 @@ def test_help_lists_the_new_commands(capsys: pytest.CaptureFixture[str]) -> None
     out = capsys.readouterr().out
     for command in ("sync", "search", "collections"):
         assert command in out
+
+
+def test_rebuild_is_the_way_out_of_a_profile_mismatch(
+    capsys: pytest.CaptureFixture[str], docs: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    assert run(["sync", "notes", str(docs), "--json"]) == 0
+    capsys.readouterr()
+    other = FakeEmbedder(model_id="other-model")
+    monkeypatch.setattr(bootstrap, "build_embedder", lambda environment: other)
+    assert run(["sync", "notes", str(docs), "--json"]) == 1
+    capsys.readouterr()
+    assert run(["sync", "notes", str(docs), "--rebuild", "--json"]) == 0
+    result = _result(capsys)
+    assert (result["created"], result["added"]) == (True, ["cats.md", "sub/dogs.md"])
+    assert run(["collections", "list", "--json"]) == 0
+    collections = _result(capsys)["collections"]
+    assert isinstance(collections, list)
+    assert collections[0]["model_id"] == "other-model"
+
+
+def test_rebuild_rebinds_the_root(
+    capsys: pytest.CaptureFixture[str], docs: Path, tmp_path: Path
+) -> None:
+    assert run(["sync", "notes", str(docs), "--json"]) == 0
+    other = tmp_path / "other"
+    other.mkdir()
+    (other / "x.md").write_text("# X\nbody", encoding="utf-8")
+    capsys.readouterr()
+    assert run(["sync", "notes", str(other), "--rebuild", "--json"]) == 0
+    assert _result(capsys)["added"] == ["x.md"]

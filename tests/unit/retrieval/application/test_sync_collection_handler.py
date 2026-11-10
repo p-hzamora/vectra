@@ -260,3 +260,39 @@ async def test_embedder_returning_the_wrong_dimension_fails_the_file() -> None:
     rig.embedder = Wrong()
     result = await rig.sync()
     assert {item.code for item in result.failed} == {"RETRIEVAL_005_EMBEDDING_DIMENSION_MISMATCH"}
+
+
+async def test_rebuild_recreates_the_collection_with_new_profile_and_root() -> None:
+    rig = Rig()
+    await rig.sync()
+    rig.embedder = FakeEmbedder(model_id="another-model")
+    result = await rig.sync(rebuild=True, root="/new/root")
+    assert (result.created, result.added, result.unchanged) == (True, ("a.md", "b.md"), 0)
+    collection = rig.store.collections["docs"]
+    assert collection.profile.model_id == "another-model"
+    assert collection.source_root.value == "/new/root"
+    assert len(rig.store.documents) == 2
+
+
+async def test_rebuild_bypasses_the_mass_delete_guard() -> None:
+    rig = Rig()
+    await rig.sync()
+    rig.source.files = {"only.md": "x"}
+    result = await rig.sync(rebuild=True)
+    assert result.added == ("only.md",)
+    assert result.deleted == ()
+    assert list(rig.store.documents) == [("docs", "only.md")]
+
+
+async def test_rebuild_dry_run_drops_nothing() -> None:
+    rig = Rig()
+    await rig.sync()
+    result = await rig.sync(rebuild=True, dry_run=True)
+    assert (result.dry_run, result.created, result.added) == (True, True, ("a.md", "b.md"))
+    assert len(rig.store.documents) == 2
+    assert rig.store.collections["docs"].profile.model_id == "fake-model"
+
+
+async def test_rebuild_of_a_new_collection_just_creates_it() -> None:
+    result = await Rig().sync(rebuild=True)
+    assert (result.created, result.added) == (True, ("a.md", "b.md"))

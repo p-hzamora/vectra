@@ -56,6 +56,7 @@ class SyncCollectionCommand(FrozenObject):
         exclude: Glob patterns to skip.
         dry_run: Plan only; write nothing.
         allow_mass_delete: Permit deleting more than half of the indexed documents.
+        rebuild: Drop the collection and recreate it with the current profile and root.
     """
 
     collection: str
@@ -64,6 +65,7 @@ class SyncCollectionCommand(FrozenObject):
     exclude: tuple[str, ...] = ()
     dry_run: bool = False
     allow_mass_delete: bool = False
+    rebuild: bool = False
 
 
 class SyncCollectionHandler(IHandler[SyncCollectionCommand, SyncResultDTO]):
@@ -109,15 +111,15 @@ class SyncCollectionHandler(IHandler[SyncCollectionCommand, SyncResultDTO]):
             file async for file in self._source.scan(action.root, action.include, action.exclude)
         ]
         collection: Collection | None = await self._existing_collection(name)
-        if collection is not None:
+        if collection is not None and not action.rebuild:
             collection.assert_same_root(root)
             collection.assert_compatible(self._embedder.profile)
 
         failures: dict[str, FileFailureDTO] = {}
         scanned: list[DocumentFingerprint] = self._fingerprints(files, failures)
-        indexed: list[ManifestEntryDTO] = [
-            entry async for entry in self._manifest.stream(name.value)
-        ]
+        indexed: list[ManifestEntryDTO] = (
+            [] if action.rebuild else [entry async for entry in self._manifest.stream(name.value)]
+        )
         plan: SyncPlan = self._planning.plan(
             scanned,
             [
@@ -131,7 +133,7 @@ class SyncCollectionHandler(IHandler[SyncCollectionCommand, SyncResultDTO]):
         )
         self._guard_mass_delete(action, plan, len(indexed))
 
-        created: bool = collection is None
+        created: bool = collection is None or action.rebuild
         if action.dry_run:
             return SyncResultDTO(
                 collection=name.value,
@@ -143,7 +145,9 @@ class SyncCollectionHandler(IHandler[SyncCollectionCommand, SyncResultDTO]):
                 unchanged=len(plan.unchanged),
                 failed=tuple(failures.values()),
             )
-        if collection is None:
+        if collection is not None:
+            await self._drop_collection(name)
+        if created:
             await self._create_collection(name, root)
 
         hashes: dict[str, str] = {file.path: file.content_hash for file in files}
@@ -185,6 +189,11 @@ class SyncCollectionHandler(IHandler[SyncCollectionCommand, SyncResultDTO]):
     async def _existing_collection(self, name: CollectionName) -> Collection | None:
         async with self._uow_factory() as uow:
             return await uow.collections.get(name)
+
+    async def _drop_collection(self, name: CollectionName) -> None:
+        async with self._uow_factory() as uow:
+            await uow.collections.delete(name)
+            await uow.commit()
 
     async def _create_collection(self, name: CollectionName, root: SourceRoot) -> None:
         async with self._uow_factory() as uow:
