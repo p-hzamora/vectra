@@ -77,6 +77,7 @@ async def test_second_sync_changes_nothing() -> None:
     assert (result.added, result.updated, result.deleted) == ((), (), ())
     assert (result.unchanged, result.created, result.chunks_written) == (2, False, 0)
     assert rig.embedder.calls == []
+    assert len(rig.store.documents) == 2
 
 
 async def test_changed_content_is_reindexed_and_stale_chunks_dropped() -> None:

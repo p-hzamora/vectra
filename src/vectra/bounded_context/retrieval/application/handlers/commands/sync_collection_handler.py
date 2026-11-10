@@ -145,7 +145,7 @@ class SyncCollectionHandler(IHandler[SyncCollectionCommand, SyncResultDTO]):
                 unchanged=len(plan.unchanged),
                 failed=tuple(failures.values()),
             )
-        if collection is not None:
+        if collection is not None and action.rebuild:
             await self._drop_collection(name)
         if created:
             await self._create_collection(name, root)
