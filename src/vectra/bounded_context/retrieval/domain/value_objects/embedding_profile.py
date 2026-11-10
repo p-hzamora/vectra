@@ -2,7 +2,11 @@
 
 from pydantic import field_validator
 
-from vectra.exceptions import EmbeddingProfileMismatchError, InvalidRetrievalValueError
+from vectra.exceptions import (
+    EmbeddingDimensionMismatchError,
+    EmbeddingProfileMismatchError,
+    InvalidRetrievalValueError,
+)
 from vectra.utils import FrozenObject
 
 
@@ -28,7 +32,7 @@ class EmbeddingProfile(FrozenObject):
     @classmethod
     def _dimension(cls, value: int) -> int:
         if value <= 0:
-            raise InvalidRetrievalValueError("An embedding dimension must be positive.")
+            raise EmbeddingDimensionMismatchError("An embedding dimension must be positive.")
         return value
 
     @property

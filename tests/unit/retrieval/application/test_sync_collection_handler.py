@@ -19,8 +19,7 @@ from vectra.bounded_context.retrieval.application.services import ChunkerResolve
 from vectra.exceptions import (
     EmbeddingProfileMismatchError,
     MassDeleteRefusedError,
-    SourceRootMismatchError,
-    SourceRootNotFoundError,
+    SourceRootInvalidError,
 )
 
 pytestmark = pytest.mark.unit
@@ -128,9 +127,9 @@ async def test_dry_run_on_existing_collection_plans_updates() -> None:
 async def test_other_root_is_refused_with_102() -> None:
     rig = Rig()
     await rig.sync()
-    with pytest.raises(SourceRootMismatchError) as raised:
+    with pytest.raises(SourceRootInvalidError) as raised:
         await rig.sync(root="/somewhere/else")
-    assert raised.value.error_code == "RETRIEVAL_102_SOURCE_ROOT_MISMATCH"
+    assert raised.value.error_code == "RETRIEVAL_102_SOURCE_ROOT_INVALID"
 
 
 async def test_other_embedding_profile_is_refused_with_003() -> None:
@@ -139,14 +138,14 @@ async def test_other_embedding_profile_is_refused_with_003() -> None:
     rig.embedder = FakeEmbedder(model_id="another-model")
     with pytest.raises(EmbeddingProfileMismatchError) as raised:
         await rig.sync()
-    assert raised.value.error_code == "RETRIEVAL_003_EMBEDDING_PROFILE_MISMATCH"
+    assert raised.value.error_code == "RETRIEVAL_003_INDEX_PROFILE_MISMATCH"
 
 
 async def test_missing_root_aborts_before_touching_the_store() -> None:
     rig = Rig()
     await rig.sync()
     rig.source.missing_root = True
-    with pytest.raises(SourceRootNotFoundError):
+    with pytest.raises(SourceRootInvalidError):
         await rig.sync()
     assert len(rig.store.documents) == 2
 
@@ -230,7 +229,7 @@ async def test_unsupported_extension_is_a_failure_without_attempts() -> None:
     rig.source.files["notes.txt"] = "plain"
     result = await rig.sync(include=["**/*"])
     assert [(item.path, item.code, item.attempts) for item in result.failed] == [
-        ("notes.txt", "RETRIEVAL_104_CHUNKER_NOT_FOUND", 0)
+        ("notes.txt", "RETRIEVAL_204_CHUNKING_FAILED", 0)
     ]
     assert result.added == ("a.md", "b.md")
 
@@ -260,4 +259,4 @@ async def test_embedder_returning_the_wrong_dimension_fails_the_file() -> None:
 
     rig.embedder = Wrong()
     result = await rig.sync()
-    assert {item.code for item in result.failed} == {"RETRIEVAL_203_EMBEDDING_MODEL_FAILURE"}
+    assert {item.code for item in result.failed} == {"RETRIEVAL_005_EMBEDDING_DIMENSION_MISMATCH"}

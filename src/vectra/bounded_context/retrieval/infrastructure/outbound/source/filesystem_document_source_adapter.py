@@ -9,7 +9,7 @@ from pathlib import Path, PurePosixPath
 from vectra.bounded_context.retrieval.application.dtos import SourceFileDTO
 from vectra.bounded_context.retrieval.application.ports.source import IDocumentSource
 from vectra.bounded_context.retrieval.domain.value_objects import SourcePath
-from vectra.exceptions import DocumentReadError, SourceRootNotFoundError
+from vectra.exceptions import DocumentReadError, SourceRootInvalidError
 
 
 class FilesystemDocumentSourceAdapter(IDocumentSource):
@@ -20,7 +20,7 @@ class FilesystemDocumentSourceAdapter(IDocumentSource):
     ) -> AsyncIterator[SourceFileDTO]:
         folder = Path(root)
         if not folder.is_dir():
-            raise SourceRootNotFoundError(
+            raise SourceRootInvalidError(
                 f"The source root {root!r} is not a folder.",
                 {"root": root},
                 next_steps=["Check the path; a sync never starts from a missing root."],

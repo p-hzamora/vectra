@@ -12,9 +12,10 @@ from .core_errors import InvalidConfigurationError
 from .exit_code_enum import ExitCodeEnum
 from .interface_errors import ConfirmationRequiredError, SkillGuideNotFoundError
 from .retrieval_errors import (
-    ChunkerNotFoundError,
+    ChunkingFailedError,
     CollectionNotFoundError,
     DocumentReadError,
+    EmbeddingDimensionMismatchError,
     EmbeddingModelError,
     EmbeddingProfileMismatchError,
     InvalidCollectionNameError,
@@ -22,20 +23,20 @@ from .retrieval_errors import (
     InvalidSearchQueryError,
     InvalidSourcePathError,
     MassDeleteRefusedError,
-    SourceRootMismatchError,
-    SourceRootNotFoundError,
+    SourceRootInvalidError,
     VectorStoreError,
 )
 
 __all__ = [
     "AppException",
     "ApplicationException",
-    "ChunkerNotFoundError",
+    "ChunkingFailedError",
     "CollectionNotFoundError",
     "ConfirmationRequiredError",
     "CoreException",
     "DocumentReadError",
     "DomainException",
+    "EmbeddingDimensionMismatchError",
     "EmbeddingModelError",
     "EmbeddingProfileMismatchError",
     "ExitCodeEnum",
@@ -48,7 +49,6 @@ __all__ = [
     "InvalidSourcePathError",
     "MassDeleteRefusedError",
     "SkillGuideNotFoundError",
-    "SourceRootMismatchError",
-    "SourceRootNotFoundError",
+    "SourceRootInvalidError",
     "VectorStoreError",
 ]

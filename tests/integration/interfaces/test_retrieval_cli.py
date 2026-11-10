@@ -93,7 +93,7 @@ def test_sync_with_a_failing_file_reports_it_and_exits_1(
     assert isinstance(failed, list)
     assert failed[0] == {
         "path": "bad.md",
-        "code": "RETRIEVAL_204_DOCUMENT_READ_FAILURE",
+        "code": "RETRIEVAL_203_DOCUMENT_UNREADABLE",
         "message": failed[0]["message"],
         "attempts": 1,
     }
@@ -106,7 +106,7 @@ def test_sync_text_output_lists_failures_and_warnings(
     (docs / "fm.md").write_text("---\ntitle: [oops\n---\nbody", encoding="utf-8")
     assert run(["sync", "notes", str(docs)]) == 1
     out = capsys.readouterr().out
-    assert "failed bad.md [RETRIEVAL_204_DOCUMENT_READ_FAILURE] after 1 attempt(s)" in out
+    assert "failed bad.md [RETRIEVAL_203_DOCUMENT_UNREADABLE] after 1 attempt(s)" in out
     assert "warning: fm.md: malformed frontmatter" in out
 
 
@@ -114,7 +114,7 @@ def test_sync_of_a_missing_root_is_201_and_exit_1(
     capsys: pytest.CaptureFixture[str], tmp_path: Path
 ) -> None:
     assert run(["sync", "notes", str(tmp_path / "missing"), "--json"]) == 1
-    assert _error(capsys)["code"] == "RETRIEVAL_201_SOURCE_ROOT_NOT_FOUND"
+    assert _error(capsys)["code"] == "RETRIEVAL_102_SOURCE_ROOT_INVALID"
 
 
 def test_sync_of_another_root_is_102(
@@ -125,7 +125,7 @@ def test_sync_of_another_root_is_102(
     other = tmp_path / "other"
     other.mkdir()
     assert run(["sync", "notes", str(other), "--json"]) == 1
-    assert _error(capsys)["code"] == "RETRIEVAL_102_SOURCE_ROOT_MISMATCH"
+    assert _error(capsys)["code"] == "RETRIEVAL_102_SOURCE_ROOT_INVALID"
 
 
 def test_sync_with_another_model_is_003(
@@ -138,7 +138,7 @@ def test_sync_with_another_model_is_003(
     other = FakeEmbedder(model_id="other-model")
     monkeypatch.setattr(bootstrap, "build_embedder", lambda environment: other)
     assert run(["sync", "notes", str(docs), "--json"]) == 1
-    assert _error(capsys)["code"] == "RETRIEVAL_003_EMBEDDING_PROFILE_MISMATCH"
+    assert _error(capsys)["code"] == "RETRIEVAL_003_INDEX_PROFILE_MISMATCH"
 
 
 def test_mass_delete_needs_the_flag(capsys: pytest.CaptureFixture[str], docs: Path) -> None:

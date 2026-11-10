@@ -13,7 +13,7 @@ from vectra.bounded_context.retrieval.domain.value_objects import (
     SourcePath,
     SourceRoot,
 )
-from vectra.exceptions import EmbeddingProfileMismatchError, SourceRootMismatchError
+from vectra.exceptions import EmbeddingProfileMismatchError, SourceRootInvalidError
 
 pytestmark = pytest.mark.unit
 
@@ -35,15 +35,15 @@ def test_compatible_profile_passes() -> None:
 def test_other_model_or_dimension_is_rejected(profile: tuple[str, int]) -> None:
     with pytest.raises(EmbeddingProfileMismatchError) as raised:
         _collection().assert_compatible(EmbeddingProfile(model_id=profile[0], dimension=profile[1]))
-    assert raised.value.error_code == "RETRIEVAL_003_EMBEDDING_PROFILE_MISMATCH"
+    assert raised.value.error_code == "RETRIEVAL_003_INDEX_PROFILE_MISMATCH"
 
 
 def test_other_root_is_rejected() -> None:
     collection = _collection()
     collection.assert_same_root(SourceRoot(value="/data/docs"))
-    with pytest.raises(SourceRootMismatchError) as raised:
+    with pytest.raises(SourceRootInvalidError) as raised:
         collection.assert_same_root(SourceRoot(value="/elsewhere"))
-    assert raised.value.error_code == "RETRIEVAL_102_SOURCE_ROOT_MISMATCH"
+    assert raised.value.error_code == "RETRIEVAL_102_SOURCE_ROOT_INVALID"
 
 
 def test_collections_are_equal_by_name() -> None:

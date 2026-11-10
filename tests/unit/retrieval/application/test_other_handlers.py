@@ -22,8 +22,8 @@ from vectra.bounded_context.retrieval.application.handlers.commands import (
 from vectra.bounded_context.retrieval.application.handlers.queries import (
     ListCollectionsHandler,
     ListCollectionsQuery,
-    SearchCollectionHandler,
     SearchCollectionQuery,
+    SearchHandler,
 )
 from vectra.bounded_context.retrieval.application.services import ChunkerResolver
 from vectra.exceptions import (
@@ -78,10 +78,8 @@ def _hit(path: str, score: float, chunk: str) -> ChunkHitDTO:
     return ChunkHitDTO(chunk_id=chunk, path=path, heading_path=(), text="body", score=score)
 
 
-async def _search_handler(
-    store: FakeRetrievalStore, embedder: FakeEmbedder
-) -> SearchCollectionHandler:
-    return SearchCollectionHandler(
+async def _search_handler(store: FakeRetrievalStore, embedder: FakeEmbedder) -> SearchHandler:
+    return SearchHandler(
         collections=FakeCollectionReadRepository(store),
         chunks=FakeChunkSearchReadRepository(store),
         embedder=embedder,

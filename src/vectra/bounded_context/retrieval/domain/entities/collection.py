@@ -8,7 +8,7 @@ from vectra.bounded_context.retrieval.domain.value_objects import (
     EmbeddingProfile,
     SourceRoot,
 )
-from vectra.exceptions import SourceRootMismatchError
+from vectra.exceptions import SourceRootInvalidError
 
 
 @dataclass(slots=True, kw_only=True)
@@ -39,10 +39,10 @@ class Collection:
         """Fail unless `root` is the root this collection was created for.
 
         Raises:
-            SourceRootMismatchError: The collection is bound to another root.
+            SourceRootInvalidError: The collection is bound to another root.
         """
         if root != self.source_root:
-            raise SourceRootMismatchError(
+            raise SourceRootInvalidError(
                 f"Collection {self.name} indexes {self.source_root.value}, not {root.value}.",
                 {
                     "collection": self.name.value,

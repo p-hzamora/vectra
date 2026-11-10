@@ -5,7 +5,7 @@ from pathlib import PurePosixPath
 
 from vectra.bounded_context.retrieval.application.ports.chunking import IChunker
 from vectra.bounded_context.retrieval.domain.value_objects import SourcePath
-from vectra.exceptions import ChunkerNotFoundError
+from vectra.exceptions import ChunkingFailedError
 
 
 class ChunkerResolver:
@@ -20,12 +20,12 @@ class ChunkerResolver:
         """The chunker for `path`'s extension.
 
         Raises:
-            ChunkerNotFoundError: No chunker handles the extension.
+            ChunkingFailedError: No chunker handles the extension.
         """
         extension: str = PurePosixPath(path.value).suffix.lower()
         chunker: IChunker | None = self._by_extension.get(extension)
         if chunker is None:
-            raise ChunkerNotFoundError(
+            raise ChunkingFailedError(
                 f"No chunker handles {path.value!r}.",
                 {"path": path.value, "extension": extension},
                 next_steps=[f"Supported extensions: {', '.join(sorted(self._by_extension))}."],

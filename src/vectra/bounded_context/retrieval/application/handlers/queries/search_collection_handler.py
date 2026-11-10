@@ -42,7 +42,7 @@ class SearchCollectionQuery(FrozenObject):
     min_score: float | None = None
 
 
-class SearchCollectionHandler(IHandler[SearchCollectionQuery, SearchResultDTO]):
+class SearchHandler(IHandler[SearchCollectionQuery, SearchResultDTO]):
     """Embeds the query, over-fetches chunks and keeps the best chunk per document."""
 
     def __init__(

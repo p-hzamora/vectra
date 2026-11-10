@@ -9,7 +9,7 @@ from vectra.bounded_context.retrieval.domain.value_objects import SourcePath
 from vectra.bounded_context.retrieval.infrastructure.outbound.source import (
     FilesystemDocumentSourceAdapter,
 )
-from vectra.exceptions import DocumentReadError, SourceRootNotFoundError
+from vectra.exceptions import DocumentReadError, SourceRootInvalidError
 
 pytestmark = pytest.mark.integration
 
@@ -58,9 +58,9 @@ async def test_scan_applies_exclude(tmp_path: Path) -> None:
 
 
 async def test_scan_of_missing_root_raises_201(tmp_path: Path) -> None:
-    with pytest.raises(SourceRootNotFoundError) as raised:
+    with pytest.raises(SourceRootInvalidError) as raised:
         await _scan(tmp_path / "missing")
-    assert raised.value.error_code == "RETRIEVAL_201_SOURCE_ROOT_NOT_FOUND"
+    assert raised.value.error_code == "RETRIEVAL_102_SOURCE_ROOT_INVALID"
 
 
 async def test_read_text_and_failures(tmp_path: Path) -> None:
@@ -72,4 +72,4 @@ async def test_read_text_and_failures(tmp_path: Path) -> None:
     (tmp_path / "bin.md").write_bytes(b"\xff\xfe\x00bad")
     with pytest.raises(DocumentReadError) as raised:
         await source.read_text(str(tmp_path), SourcePath(value="bin.md"))
-    assert raised.value.error_code == "RETRIEVAL_204_DOCUMENT_READ_FAILURE"
+    assert raised.value.error_code == "RETRIEVAL_203_DOCUMENT_UNREADABLE"

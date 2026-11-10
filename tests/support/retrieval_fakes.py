@@ -107,9 +107,9 @@ class FakeSource(IDocumentSource):
         self, root: str, include: Sequence[str], exclude: Sequence[str]
     ) -> AsyncIterator[SourceFileDTO]:
         if self.missing_root:
-            from vectra.exceptions import SourceRootNotFoundError
+            from vectra.exceptions import SourceRootInvalidError
 
-            raise SourceRootNotFoundError("missing", {"root": root})
+            raise SourceRootInvalidError("missing", {"root": root})
         for path, text in sorted(self.files.items()):
             yield SourceFileDTO(
                 path=path, content_hash=hashlib.sha256(text.encode()).hexdigest(), size=len(text)

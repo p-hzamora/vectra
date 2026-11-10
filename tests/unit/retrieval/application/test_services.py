@@ -10,7 +10,7 @@ from vectra.bounded_context.retrieval.application.services import (
     DocumentHitGrouper,
 )
 from vectra.bounded_context.retrieval.domain.value_objects import SourcePath
-from vectra.exceptions import ChunkerNotFoundError
+from vectra.exceptions import ChunkingFailedError
 
 pytestmark = pytest.mark.unit
 
@@ -22,9 +22,9 @@ def test_resolver_picks_by_extension_case_insensitively() -> None:
 
 
 def test_resolver_rejects_unknown_extensions() -> None:
-    with pytest.raises(ChunkerNotFoundError) as raised:
+    with pytest.raises(ChunkingFailedError) as raised:
         ChunkerResolver([FakeChunker()]).resolve(SourcePath(value="a.py"))
-    assert raised.value.error_code == "RETRIEVAL_104_CHUNKER_NOT_FOUND"
+    assert raised.value.error_code == "RETRIEVAL_204_CHUNKING_FAILED"
 
 
 def _hit(path: str, score: float, text: str = "t", chunk: str = "c") -> ChunkHitDTO:

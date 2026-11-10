@@ -15,8 +15,8 @@ from vectra.bounded_context.retrieval.application.handlers.commands import (
 from vectra.bounded_context.retrieval.application.handlers.queries import (
     ListCollectionsHandler,
     ListCollectionsQuery,
-    SearchCollectionHandler,
     SearchCollectionQuery,
+    SearchHandler,
 )
 from vectra.bounded_context.retrieval.application.services import ChunkerResolver
 from vectra.bounded_context.retrieval.domain.entities import IndexedDocument
@@ -72,8 +72,8 @@ class Stack:
             clock=lambda: FIXED_NOW,
         )
 
-    def search(self) -> SearchCollectionHandler:
-        return SearchCollectionHandler(
+    def search(self) -> SearchHandler:
+        return SearchHandler(
             collections=self.collections,
             chunks=LanceDbChunkSearchReadRepositoryAdapter(self.store),
             embedder=self.embedder,

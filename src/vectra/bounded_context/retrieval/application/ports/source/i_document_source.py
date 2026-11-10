@@ -17,7 +17,7 @@ class IDocumentSource(abc.ABC):
         """Files under `root` matching `include` and not `exclude` (glob patterns).
 
         Raises:
-            SourceRootNotFoundError: `root` is missing or not a folder.
+            SourceRootInvalidError: `root` is missing or not a folder.
         """
         ...
 

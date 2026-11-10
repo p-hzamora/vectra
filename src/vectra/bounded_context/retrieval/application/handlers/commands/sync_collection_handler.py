@@ -37,7 +37,7 @@ from vectra.bounded_context.retrieval.domain.value_objects import (
     SourceRoot,
     SyncPlan,
 )
-from vectra.exceptions import AppException, EmbeddingModelError, MassDeleteRefusedError
+from vectra.exceptions import AppException, EmbeddingDimensionMismatchError, MassDeleteRefusedError
 from vectra.shared_kernel.application.handlers import IHandler
 from vectra.utils import FrozenObject
 
@@ -98,8 +98,8 @@ class SyncCollectionHandler(IHandler[SyncCollectionCommand, SyncResultDTO]):
         """Sync the collection.
 
         Raises:
-            SourceRootNotFoundError: The root is missing (nothing is touched).
-            SourceRootMismatchError: The collection is bound to another root.
+            SourceRootInvalidError: The root is missing (nothing is touched).
+            SourceRootInvalidError: The collection is bound to another root.
             EmbeddingProfileMismatchError: The configured model differs from the collection's.
             MassDeleteRefusedError: More than half of the indexed documents would be deleted.
         """
@@ -281,7 +281,7 @@ class SyncCollectionHandler(IHandler[SyncCollectionCommand, SyncResultDTO]):
         if len(embeddings) != len(chunked.chunks) or any(
             embedding.dimension != self._embedder.profile.dimension for embedding in embeddings
         ):
-            raise EmbeddingModelError(
+            raise EmbeddingDimensionMismatchError(
                 f"The embedder returned vectors that do not match {self._embedder.profile.fingerprint}.",
                 {"path": path.value},
             )

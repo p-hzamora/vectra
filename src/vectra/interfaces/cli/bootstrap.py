@@ -10,7 +10,7 @@ from vectra.bounded_context.retrieval.application.handlers.commands import (
 )
 from vectra.bounded_context.retrieval.application.handlers.queries import (
     ListCollectionsHandler,
-    SearchCollectionHandler,
+    SearchHandler,
 )
 from vectra.bounded_context.retrieval.application.ports.embedding import IEmbedder
 from vectra.bounded_context.retrieval.application.services import ChunkerResolver
@@ -40,7 +40,7 @@ class RetrievalHandlers:
     """The wired handlers of the retrieval context."""
 
     sync: SyncCollectionHandler
-    search: SearchCollectionHandler
+    search: SearchHandler
     drop: DropCollectionHandler
     list_collections: ListCollectionsHandler
 
@@ -75,7 +75,7 @@ def build_retrieval(
             max_retries=environment.retrieval.sync_max_retries,
             backoff_seconds=backoff_seconds,
         ),
-        search=SearchCollectionHandler(
+        search=SearchHandler(
             collections=collections,
             chunks=LanceDbChunkSearchReadRepositoryAdapter(store),
             embedder=chosen,

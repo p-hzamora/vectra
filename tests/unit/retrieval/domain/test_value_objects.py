@@ -14,10 +14,12 @@ from vectra.bounded_context.retrieval.domain.value_objects import (
     SourceRoot,
 )
 from vectra.exceptions import (
+    EmbeddingDimensionMismatchError,
     InvalidCollectionNameError,
     InvalidRetrievalValueError,
     InvalidSearchQueryError,
     InvalidSourcePathError,
+    SourceRootInvalidError,
 )
 
 pytestmark = pytest.mark.unit
@@ -65,13 +67,13 @@ def test_embedding_profile_validates_and_fingerprints() -> None:
     assert profile.fingerprint == "m:4"
     with pytest.raises(InvalidRetrievalValueError):
         EmbeddingProfile(model_id=" ", dimension=4)
-    with pytest.raises(InvalidRetrievalValueError):
+    with pytest.raises(EmbeddingDimensionMismatchError):
         EmbeddingProfile(model_id="m", dimension=0)
 
 
 def test_embedding_needs_values() -> None:
     assert Embedding(values=(1.0, 2.0)).dimension == 2
-    with pytest.raises(InvalidRetrievalValueError):
+    with pytest.raises(EmbeddingDimensionMismatchError):
         Embedding(values=())
 
 
@@ -103,5 +105,5 @@ def test_search_query_accepts_prefix_and_min_score() -> None:
 
 def test_source_root_must_be_absolute() -> None:
     assert SourceRoot(value="/a/b").value == "/a/b"
-    with pytest.raises(InvalidRetrievalValueError):
+    with pytest.raises(SourceRootInvalidError):
         SourceRoot(value="a/b")

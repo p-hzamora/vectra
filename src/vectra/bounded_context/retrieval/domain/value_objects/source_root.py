@@ -4,7 +4,7 @@ from pathlib import PurePosixPath
 
 from pydantic import field_validator
 
-from vectra.exceptions import InvalidRetrievalValueError
+from vectra.exceptions import SourceRootInvalidError
 from vectra.utils import FrozenObject
 
 
@@ -22,7 +22,7 @@ class SourceRoot(FrozenObject):
     def _absolute(cls, value: str) -> str:
         path = PurePosixPath(value)
         if not path.is_absolute():
-            raise InvalidRetrievalValueError(
+            raise SourceRootInvalidError(
                 f"A source root must be absolute: {value!r}.", {"root": value}
             )
         return path.as_posix()

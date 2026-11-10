@@ -2,7 +2,7 @@
 
 from pydantic import field_validator
 
-from vectra.exceptions import InvalidRetrievalValueError
+from vectra.exceptions import EmbeddingDimensionMismatchError
 from vectra.utils import FrozenObject
 
 
@@ -19,7 +19,7 @@ class Embedding(FrozenObject):
     @classmethod
     def _non_empty(cls, values: tuple[float, ...]) -> tuple[float, ...]:
         if not values:
-            raise InvalidRetrievalValueError("An embedding cannot be empty.")
+            raise EmbeddingDimensionMismatchError("An embedding cannot be empty.")
         return values
 
     @property

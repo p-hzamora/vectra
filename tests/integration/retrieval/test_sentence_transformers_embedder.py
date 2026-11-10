@@ -61,7 +61,7 @@ async def test_other_models_get_no_prefix_and_failures_are_wrapped(
     assert (await embedder.embed_query("abc")).values == (3.0, 1.0)
     with pytest.raises(EmbeddingModelError) as raised:
         await embedder.embed_documents(["explode"])
-    assert raised.value.error_code == "RETRIEVAL_203_EMBEDDING_MODEL_FAILURE"
+    assert raised.value.error_code == "RETRIEVAL_202_EMBEDDER_UNAVAILABLE"
 
 
 @pytest.mark.model

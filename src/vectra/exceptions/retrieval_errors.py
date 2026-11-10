@@ -18,7 +18,7 @@ class InvalidSourcePathError(DomainException):
 class EmbeddingProfileMismatchError(DomainException):
     """The embedding model or dimension differs from the one the collection was built with."""
 
-    __error_code__ = "RETRIEVAL_003_EMBEDDING_PROFILE_MISMATCH"
+    __error_code__ = "RETRIEVAL_003_INDEX_PROFILE_MISMATCH"
 
 
 class InvalidSearchQueryError(DomainException):
@@ -27,10 +27,16 @@ class InvalidSearchQueryError(DomainException):
     __error_code__ = "RETRIEVAL_004_INVALID_SEARCH_QUERY"
 
 
-class InvalidRetrievalValueError(DomainException):
-    """A hash, chunk id, embedding, profile or source root value is malformed."""
+class EmbeddingDimensionMismatchError(DomainException):
+    """An embedding is empty, or its length differs from the profile's dimension."""
 
-    __error_code__ = "RETRIEVAL_005_INVALID_VALUE"
+    __error_code__ = "RETRIEVAL_005_EMBEDDING_DIMENSION_MISMATCH"
+
+
+class InvalidRetrievalValueError(DomainException):
+    """A hash, chunk id or model id is malformed (extra code, no approved equivalent)."""
+
+    __error_code__ = "RETRIEVAL_006_INVALID_VALUE"
 
 
 class CollectionNotFoundError(ApplicationException):
@@ -39,10 +45,10 @@ class CollectionNotFoundError(ApplicationException):
     __error_code__ = "RETRIEVAL_101_COLLECTION_NOT_FOUND"
 
 
-class SourceRootMismatchError(ApplicationException):
-    """The collection is bound to a different source root."""
+class SourceRootInvalidError(ApplicationException):
+    """The source root is relative, missing, unreadable, or differs from the collection's root."""
 
-    __error_code__ = "RETRIEVAL_102_SOURCE_ROOT_MISMATCH"
+    __error_code__ = "RETRIEVAL_102_SOURCE_ROOT_INVALID"
 
 
 class MassDeleteRefusedError(ApplicationException):
@@ -51,31 +57,25 @@ class MassDeleteRefusedError(ApplicationException):
     __error_code__ = "RETRIEVAL_103_MASS_DELETE_REFUSED"
 
 
-class ChunkerNotFoundError(ApplicationException):
-    """No chunker handles the file extension."""
-
-    __error_code__ = "RETRIEVAL_104_CHUNKER_NOT_FOUND"
-
-
-class SourceRootNotFoundError(InfrastructureException):
-    """The source root is missing or is not a folder."""
-
-    __error_code__ = "RETRIEVAL_201_SOURCE_ROOT_NOT_FOUND"
-
-
 class VectorStoreError(InfrastructureException):
     """The vector store failed to read or write."""
 
-    __error_code__ = "RETRIEVAL_202_VECTOR_STORE_FAILURE"
+    __error_code__ = "RETRIEVAL_201_VECTOR_STORE_UNAVAILABLE"
 
 
 class EmbeddingModelError(InfrastructureException):
     """The embedding model could not be loaded or failed to embed."""
 
-    __error_code__ = "RETRIEVAL_203_EMBEDDING_MODEL_FAILURE"
+    __error_code__ = "RETRIEVAL_202_EMBEDDER_UNAVAILABLE"
 
 
 class DocumentReadError(InfrastructureException):
     """A source document could not be read or decoded."""
 
-    __error_code__ = "RETRIEVAL_204_DOCUMENT_READ_FAILURE"
+    __error_code__ = "RETRIEVAL_203_DOCUMENT_UNREADABLE"
+
+
+class ChunkingFailedError(InfrastructureException):
+    """A document could not be chunked (for example no chunker handles its extension)."""
+
+    __error_code__ = "RETRIEVAL_204_CHUNKING_FAILED"
