@@ -63,6 +63,10 @@ mypy_path = "src"
 packages = ["vectra"]
 plugins = ["pydantic.mypy"]
 
+[[tool.mypy.overrides]]
+module = ["pyarrow", "pyarrow.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src", "."]
@@ -115,3 +119,81 @@ type = "forbidden"
 source_modules = ["vectra.bounded_context", "vectra.shared_kernel"]
 forbidden_modules = ["typer", "pydantic_settings", "vectra.core"]
 allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Retrieval layers point inward"
+type = "layers"
+layers = [
+    "vectra.bounded_context.retrieval.infrastructure",
+    "vectra.bounded_context.retrieval.application",
+    "vectra.bounded_context.retrieval.domain",
+]
+
+[[tool.importlinter.contracts]]
+name = "Retrieval domain and application know no SDK or delivery framework"
+type = "forbidden"
+source_modules = [
+    "vectra.bounded_context.retrieval.domain",
+    "vectra.bounded_context.retrieval.application",
+]
+forbidden_modules = [
+    "lancedb",
+    "pyarrow",
+    "sentence_transformers",
+    "torch",
+    "transformers",
+    "yaml",
+    "typer",
+    "vectra.bounded_context.retrieval.infrastructure",
+]
+
+[[tool.importlinter.contracts]]
+name = "Only the vector store package imports lancedb and pyarrow"
+type = "forbidden"
+source_modules = ["vectra"]
+forbidden_modules = ["lancedb", "pyarrow"]
+ignore_imports = [
+    "vectra.bounded_context.retrieval.infrastructure.outbound.vector_store.** -> lancedb",
+    "vectra.bounded_context.retrieval.infrastructure.outbound.vector_store.** -> pyarrow",
+]
+
+[[tool.importlinter.contracts]]
+name = "Only the embedding package imports the embedding model SDKs"
+type = "forbidden"
+source_modules = ["vectra"]
+forbidden_modules = ["sentence_transformers", "torch", "transformers"]
+ignore_imports = [
+    "vectra.bounded_context.retrieval.infrastructure.outbound.embedding.** -> sentence_transformers",
+]
+
+[[tool.importlinter.contracts]]
+name = "Only the chunking package imports yaml"
+type = "forbidden"
+source_modules = ["vectra"]
+forbidden_modules = ["yaml"]
+ignore_imports = [
+    "vectra.bounded_context.retrieval.infrastructure.outbound.chunking.** -> yaml",
+]
+
+[[tool.importlinter.contracts]]
+name = "Retrieval adapter packages are independent"
+type = "independence"
+modules = [
+    "vectra.bounded_context.retrieval.infrastructure.outbound.vector_store",
+    "vectra.bounded_context.retrieval.infrastructure.outbound.embedding",
+    "vectra.bounded_context.retrieval.infrastructure.outbound.chunking",
+    "vectra.bounded_context.retrieval.infrastructure.outbound.source",
+]
+
+[[tool.importlinter.contracts]]
+name = "Interfaces reach retrieval domain and infrastructure only through the bootstrap"
+type = "forbidden"
+source_modules = ["vectra.interfaces"]
+forbidden_modules = [
+    "vectra.bounded_context.retrieval.domain",
+    "vectra.bounded_context.retrieval.infrastructure",
+]
+allow_indirect_imports = true
+ignore_imports = [
+    "vectra.interfaces.cli.bootstrap -> vectra.bounded_context.retrieval.infrastructure.**",
+]
