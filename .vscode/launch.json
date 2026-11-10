@@ -1,0 +1,18 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "vectra CLI (any command)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/debug_cli.py",
+      "args": ["${input:commandLine}"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": false
+    }
+  ],
+  "inputs": [
+    { "id": "commandLine", "type": "promptString", "description": "full command, e.g. config show --json", "default": "--help" }
+  ]
+}

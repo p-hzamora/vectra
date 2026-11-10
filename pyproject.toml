@@ -1,0 +1,112 @@
+[project]
+name = "vectra"
+version = "0.1.0"
+description = "Chunk files, embed them into a vector store, and serve semantic search to agents and tools."
+readme = "README.md"
+license = "MIT"
+authors = [{ name = "Pablo Hernandez", email = "p.hzamora@icloud.com" }]
+requires-python = ">=3.14,<4"
+dependencies = [
+    "pydantic>=2.12,<3",
+    "pydantic-settings>=2.11,<3",
+    "typer>=0.20,<1",
+]
+
+[project.scripts]
+vectra = "vectra.interfaces.cli.app:main"
+
+[dependency-groups]
+dev = [
+    "import-linter>=2.5",
+    "mypy>=1.19",
+    "pytest>=9",
+    "pytest-asyncio>=1.3",
+    "pytest-cov>=7",
+    "ruff>=0.14",
+]
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/vectra"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"skill_guides" = "vectra/skill_guides"  # `vectra skills get` serves them after installation
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "C4", "UP", "N", "S", "T20", "SIM", "PTH", "RUF"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["RUF022"]
+"tests/**/*.py" = ["S101", "S105", "S106", "S603", "S607"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["vectra"]
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+mypy_path = "src"
+packages = ["vectra"]
+plugins = ["pydantic.mypy"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "."]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = ["--strict-config", "--strict-markers"]
+markers = [
+    "unit: fast, isolated, no I/O beyond tmp_path",
+    "integration: exercises a real adapter (files, vector store, subprocess)",
+    "architecture: enforces dependency rules",
+]
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+source = ["vectra"]
+branch = true
+omit = ["*/__init__.py"]
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = true
+skip_covered = true
+
+[tool.importlinter]
+root_package = "vectra"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Nothing below the interface layer imports it"
+type = "forbidden"
+source_modules = [
+    "vectra.bounded_context",
+    "vectra.core",
+    "vectra.exceptions",
+    "vectra.shared_kernel",
+    "vectra.utils",
+]
+forbidden_modules = ["vectra.interfaces"]
+
+[[tool.importlinter.contracts]]
+name = "Configuration is read only through vectra.core.env"
+type = "forbidden"
+source_modules = ["vectra.interfaces"]
+forbidden_modules = ["vectra.core.configurations", "pydantic_settings"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Bounded contexts know no delivery framework and no settings"
+type = "forbidden"
+source_modules = ["vectra.bounded_context", "vectra.shared_kernel"]
+forbidden_modules = ["typer", "pydantic_settings", "vectra.core"]
+allow_indirect_imports = true
