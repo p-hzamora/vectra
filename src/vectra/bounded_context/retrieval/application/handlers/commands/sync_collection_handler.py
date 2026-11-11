@@ -1,49 +1,38 @@
 """Bring a collection in line with its source folder."""
 
-import asyncio
-from collections.abc import Awaitable, Callable
-from datetime import UTC, datetime
 from functools import partial
-from pathlib import PurePosixPath
 
 from vectra.bounded_context.retrieval.application.dtos import (
+    DocumentIndexResultDTO,
     FileFailureDTO,
     ManifestEntryDTO,
     SourceFileDTO,
     SyncResultDTO,
 )
-from vectra.bounded_context.retrieval.application.ports.chunking import IChunker
 from vectra.bounded_context.retrieval.application.ports.embedding import IEmbedder
 from vectra.bounded_context.retrieval.application.ports.read_repositories import (
     IManifestReadRepository,
 )
 from vectra.bounded_context.retrieval.application.ports.source import IDocumentSource
-from vectra.bounded_context.retrieval.application.ports.uow import IRetrievalUnitOfWork
-from vectra.bounded_context.retrieval.application.services import ChunkerResolver
-from vectra.bounded_context.retrieval.domain.entities import Collection, IndexedDocument
-from vectra.bounded_context.retrieval.domain.policies import (
-    StableChunkIdPolicy,
-    SyncPlanningPolicy,
+from vectra.bounded_context.retrieval.application.services import (
+    CollectionProvisioner,
+    DocumentFingerprinter,
+    DocumentIndexer,
+    DocumentRemover,
+    RetryRunner,
 )
+from vectra.bounded_context.retrieval.domain.entities import Collection
+from vectra.bounded_context.retrieval.domain.policies import MassDeletePolicy, SyncPlanningPolicy
 from vectra.bounded_context.retrieval.domain.value_objects import (
-    ChunkedDocument,
-    ChunkId,
     CollectionName,
-    ContentHash,
-    DocumentFingerprint,
-    EmbeddedChunk,
-    Embedding,
-    SourcePath,
     SourceRoot,
     SyncPlan,
 )
-from vectra.exceptions import AppException, EmbeddingDimensionMismatchError, MassDeleteRefusedError
+from vectra.exceptions import MassDeleteRefusedError
 from vectra.shared_kernel.application.handlers import IHandler
 from vectra.utils import FrozenObject
 
-MASS_DELETE_RATIO: float = 0.5
 DEFAULT_INCLUDE: tuple[str, ...] = ("**/*.md",)
-UNEXPECTED_CODE: str = "RETRIEVAL_000_UNEXPECTED"
 
 
 class SyncCollectionCommand(FrozenObject):
@@ -76,27 +65,27 @@ class SyncCollectionHandler(IHandler[SyncCollectionCommand, SyncResultDTO]):
     def __init__(
         self,
         *,
-        uow_factory: Callable[[], IRetrievalUnitOfWork],
         manifest: IManifestReadRepository,
         source: IDocumentSource,
-        resolver: ChunkerResolver,
         embedder: IEmbedder,
-        max_retries: int,
-        backoff_seconds: float = 0.5,
-        sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
-        clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+        provisioner: CollectionProvisioner,
+        fingerprinter: DocumentFingerprinter,
+        indexer: DocumentIndexer,
+        remover: DocumentRemover,
+        retry: RetryRunner,
+        planning: SyncPlanningPolicy | None = None,
+        mass_delete: MassDeletePolicy | None = None,
     ) -> None:
-        self._uow_factory: Callable[[], IRetrievalUnitOfWork] = uow_factory
         self._manifest: IManifestReadRepository = manifest
         self._source: IDocumentSource = source
-        self._resolver: ChunkerResolver = resolver
         self._embedder: IEmbedder = embedder
-        self._max_retries: int = max_retries
-        self._backoff_seconds: float = backoff_seconds
-        self._sleep: Callable[[float], Awaitable[None]] = sleep
-        self._clock: Callable[[], datetime] = clock
-        self._planning: SyncPlanningPolicy = SyncPlanningPolicy()
-        self._chunk_ids: StableChunkIdPolicy = StableChunkIdPolicy()
+        self._provisioner: CollectionProvisioner = provisioner
+        self._fingerprinter: DocumentFingerprinter = fingerprinter
+        self._indexer: DocumentIndexer = indexer
+        self._remover: DocumentRemover = remover
+        self._retry: RetryRunner = retry
+        self._planning: SyncPlanningPolicy = planning or SyncPlanningPolicy()
+        self._mass_delete: MassDeletePolicy = mass_delete or MassDeletePolicy()
 
     async def handle(self, action: SyncCollectionCommand) -> SyncResultDTO:
         """Sync the collection.
@@ -114,7 +103,7 @@ class SyncCollectionHandler(IHandler[SyncCollectionCommand, SyncResultDTO]):
         files: list[SourceFileDTO] = [
             file async for file in self._source.scan(action.root, action.include, action.exclude)
         ]
-        collection: Collection | None = await self._existing_collection(name)
+        collection: Collection | None = await self._provisioner.get(name)
         if collection is not None:
             if not action.rebuild:
                 collection.assert_same_root(root)
@@ -122,24 +111,16 @@ class SyncCollectionHandler(IHandler[SyncCollectionCommand, SyncResultDTO]):
             elif not action.allow_new_root:
                 collection.assert_same_root(root, rebuild=True)
 
-        failures: dict[str, FileFailureDTO] = {}
-        scanned: list[DocumentFingerprint] = self._fingerprints(files, failures)
-        indexed: list[ManifestEntryDTO] = (
+        scanned, failures = self._fingerprinter.scanned(files)
+        entries: list[ManifestEntryDTO] = (
             [] if action.rebuild else [entry async for entry in self._manifest.stream(name.value)]
         )
-        plan: SyncPlan = self._planning.plan(
-            scanned,
-            [
-                DocumentFingerprint(
-                    path=SourcePath(value=entry.path),
-                    content_hash=ContentHash(value=entry.content_hash),
-                    chunker_version=entry.chunker_version,
-                )
-                for entry in indexed
-            ],
-        )
-        refusal: MassDeleteRefusedError | None = self._mass_delete_refusal(
-            action, plan, len(indexed)
+        plan: SyncPlan = self._planning.plan(scanned, self._fingerprinter.indexed(entries))
+        refusal: MassDeleteRefusedError | None = self._mass_delete.refusal(
+            collection=name.value,
+            to_delete=len(plan.delete),
+            indexed=len(entries),
+            allowed=action.allow_mass_delete,
         )
         if refusal is not None and not action.dry_run:
             raise refusal
@@ -150,24 +131,24 @@ class SyncCollectionHandler(IHandler[SyncCollectionCommand, SyncResultDTO]):
                 collection=name.value,
                 dry_run=True,
                 created=created,
-                added=_values(plan.add),
-                updated=_values(plan.update),
-                deleted=_values(plan.delete),
+                added=tuple(path.value for path in plan.add),
+                updated=tuple(path.value for path in plan.update),
+                deleted=tuple(path.value for path in plan.delete),
                 unchanged=len(plan.unchanged),
                 failed=tuple(failures.values()),
                 warnings=(
                     ()
                     if refusal is None
                     else (
-                        f"The real sync would be refused ({len(plan.delete)} of {len(indexed)} "
+                        f"The real sync would be refused ({len(plan.delete)} of {len(entries)} "
                         "indexed documents would be deleted) without --allow-mass-delete.",
                     )
                 ),
             )
         if collection is not None and action.rebuild:
-            await self._drop_collection(name)
+            await self._provisioner.drop(name)
         if created:
-            await self._create_collection(name, root)
+            await self._provisioner.create(name, root)
 
         hashes: dict[str, str] = {file.path: file.content_hash for file in files}
         added: list[str] = []
@@ -176,20 +157,21 @@ class SyncCollectionHandler(IHandler[SyncCollectionCommand, SyncResultDTO]):
         warnings: list[str] = []
         chunks_written: int = 0
         for path in plan.add + plan.update:
-            outcome: int | FileFailureDTO = await self._with_retries(
-                path, partial(self._index, name, root, path, hashes, warnings)
+            indexed: DocumentIndexResultDTO | FileFailureDTO = await self._retry.run(
+                path, partial(self._indexer.index, name, root, path, hashes[path.value])
             )
-            if isinstance(outcome, FileFailureDTO):
-                failures[path.value] = outcome
-            else:
-                chunks_written += outcome
-                (added if path in plan.add else updated).append(path.value)
+            if isinstance(indexed, FileFailureDTO):
+                failures[path.value] = indexed
+                continue
+            chunks_written += indexed.chunks_written
+            warnings.extend(indexed.warnings)
+            (added if path in plan.add else updated).append(path.value)
         for path in plan.delete:
-            result: int | FileFailureDTO = await self._with_retries(
-                path, partial(self._remove, name, path)
+            removed: FileFailureDTO | None = await self._retry.run(
+                path, partial(self._remover.remove, name, path)
             )
-            if isinstance(result, FileFailureDTO):
-                failures[path.value] = result
+            if isinstance(removed, FileFailureDTO):
+                failures[path.value] = removed
             else:
                 deleted.append(path.value)
         return SyncResultDTO(
@@ -204,150 +186,3 @@ class SyncCollectionHandler(IHandler[SyncCollectionCommand, SyncResultDTO]):
             warnings=tuple(warnings),
             chunks_written=chunks_written,
         )
-
-    async def _existing_collection(self, name: CollectionName) -> Collection | None:
-        async with self._uow_factory() as uow:
-            return await uow.collections.get(name)
-
-    async def _drop_collection(self, name: CollectionName) -> None:
-        async with self._uow_factory() as uow:
-            await uow.collections.delete(name)
-            await uow.commit()
-
-    async def _create_collection(self, name: CollectionName, root: SourceRoot) -> None:
-        async with self._uow_factory() as uow:
-            await uow.collections.save(
-                Collection(
-                    name=name,
-                    profile=self._embedder.profile,
-                    source_root=root,
-                    created_at=self._clock(),
-                )
-            )
-            await uow.commit()
-
-    def _fingerprints(
-        self, files: list[SourceFileDTO], failures: dict[str, FileFailureDTO]
-    ) -> list[DocumentFingerprint]:
-        """Fingerprints of the files a chunker handles; the others become failures."""
-        fingerprints: list[DocumentFingerprint] = []
-        for file in files:
-            path = SourcePath(value=file.path)
-            try:
-                chunker: IChunker = self._resolver.resolve(path)
-            except AppException as error:
-                failures[file.path] = FileFailureDTO(
-                    path=file.path, code=error.error_code, message=error.message, attempts=0
-                )
-                continue
-            fingerprints.append(
-                DocumentFingerprint(
-                    path=path,
-                    content_hash=ContentHash(value=file.content_hash),
-                    chunker_version=chunker.chunker_version,
-                )
-            )
-        return fingerprints
-
-    def _mass_delete_refusal(
-        self, action: SyncCollectionCommand, plan: SyncPlan, indexed_count: int
-    ) -> MassDeleteRefusedError | None:
-        if (
-            not action.allow_mass_delete
-            and indexed_count > 0
-            and len(plan.delete) > indexed_count * MASS_DELETE_RATIO
-        ):
-            return MassDeleteRefusedError(
-                f"This sync would delete {len(plan.delete)} of {indexed_count} indexed documents.",
-                {
-                    "collection": action.collection,
-                    "to_delete": len(plan.delete),
-                    "indexed": indexed_count,
-                },
-                next_steps=[
-                    "Check that the source folder is the right and complete one.",
-                    "Repeat with --allow-mass-delete if the deletions are intended.",
-                ],
-            )
-        return None
-
-    async def _with_retries(
-        self, path: SourcePath, operation: Callable[[], Awaitable[int]]
-    ) -> int | FileFailureDTO:
-        """Run `operation`, retrying up to `max_retries` times with growing backoff."""
-        attempts: int = 0
-        while True:
-            attempts += 1
-            try:
-                return await operation()
-            except Exception as error:
-                if attempts > self._max_retries:
-                    code: str = (
-                        error.error_code if isinstance(error, AppException) else UNEXPECTED_CODE
-                    )
-                    message: str = error.message if isinstance(error, AppException) else str(error)
-                    return FileFailureDTO(
-                        path=path.value, code=code, message=message, attempts=attempts
-                    )
-                await self._sleep(self._backoff_seconds * attempts)
-
-    async def _index(
-        self,
-        name: CollectionName,
-        root: SourceRoot,
-        path: SourcePath,
-        hashes: dict[str, str],
-        warnings: list[str],
-    ) -> int:
-        """Chunk, embed and store one document; returns the number of chunks written."""
-        chunker: IChunker = self._resolver.resolve(path)
-        text: str = await self._source.read_text(root.value, path)
-        chunked: ChunkedDocument = chunker.chunk(text, path)
-        ids: tuple[ChunkId, ...] = self._chunk_ids.assign(name, path, chunked.chunks)
-        embeddings: list[Embedding] = await self._embedder.embed_documents(
-            [chunk.text for chunk in chunked.chunks]
-        )
-        if len(embeddings) != len(chunked.chunks) or any(
-            embedding.dimension != self._embedder.profile.dimension for embedding in embeddings
-        ):
-            raise EmbeddingDimensionMismatchError(
-                f"The embedder returned vectors that do not match {self._embedder.profile.fingerprint}.",
-                {"path": path.value},
-            )
-        payload: list[EmbeddedChunk] = [
-            EmbeddedChunk(
-                chunk_id=chunk_id,
-                text=chunk.text,
-                heading_path=chunk.heading_path,
-                metadata=chunk.metadata,
-                embedding=embedding,
-            )
-            for chunk_id, chunk, embedding in zip(ids, chunked.chunks, embeddings, strict=True)
-        ]
-        content_hash = ContentHash(value=hashes[path.value])
-        async with self._uow_factory() as uow:
-            document: IndexedDocument | None = await uow.documents.get(name, path)
-            if document is None:
-                document = IndexedDocument(
-                    collection=name,
-                    path=path,
-                    content_hash=content_hash,
-                    chunker_version=chunker.chunker_version,
-                    chunk_ids=ids,
-                )
-            else:
-                document.reindex(content_hash, chunker.chunker_version, ids)
-            await uow.documents.save(document, payload)
-            await uow.commit()
-        warnings.extend(f"{path.value}: {warning}" for warning in chunked.warnings)
-        return len(payload)
-
-    async def _remove(self, name: CollectionName, path: SourcePath) -> int:
-        async with self._uow_factory() as uow:
-            await uow.documents.delete(name, path)
-            await uow.commit()
-        return 0
-
-
-def _values(paths: tuple[SourcePath, ...]) -> tuple[str, ...]:
-    return tuple(PurePosixPath(path.value).as_posix() for path in paths)

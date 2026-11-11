@@ -1,5 +1,7 @@
 """Model and vector size a collection's embeddings come from."""
 
+from collections.abc import Sequence
+
 from pydantic import field_validator
 
 from vectra.exceptions import (
@@ -8,6 +10,8 @@ from vectra.exceptions import (
     InvalidRetrievalValueError,
 )
 from vectra.utils import FrozenObject
+
+from .embedding import Embedding
 
 
 class EmbeddingProfile(FrozenObject):
@@ -62,4 +66,23 @@ class EmbeddingProfile(FrozenObject):
                 next_steps=[
                     "Set the embedding model back, or drop the collection and sync it again."
                 ],
+            )
+
+    def assert_embeddings(self, embeddings: Sequence[Embedding], expected: int, path: str) -> None:
+        """Fail unless `embeddings` are `expected` vectors of this profile's dimension.
+
+        Args:
+            embeddings: What the embedder returned.
+            expected: How many vectors were asked for.
+            path: Document path, for the message.
+
+        Raises:
+            EmbeddingDimensionMismatchError: Wrong count or wrong vector length.
+        """
+        if len(embeddings) != expected or any(
+            embedding.dimension != self.dimension for embedding in embeddings
+        ):
+            raise EmbeddingDimensionMismatchError(
+                f"The embedder returned vectors that do not match {self.fingerprint}.",
+                {"path": path},
             )

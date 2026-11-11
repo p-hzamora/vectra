@@ -13,7 +13,14 @@ from vectra.bounded_context.retrieval.application.handlers.queries import (
     SearchHandler,
 )
 from vectra.bounded_context.retrieval.application.ports.embedding import IEmbedder
-from vectra.bounded_context.retrieval.application.services import ChunkerResolver
+from vectra.bounded_context.retrieval.application.services import (
+    ChunkerResolver,
+    CollectionProvisioner,
+    DocumentFingerprinter,
+    DocumentIndexer,
+    DocumentRemover,
+    RetryRunner,
+)
 from vectra.bounded_context.retrieval.infrastructure.outbound.chunking import (
     MarkdownChunkerAdapter,
     PythonChunkerAdapter,
@@ -66,15 +73,24 @@ def build_retrieval(
     store = LanceDbStore(Path(environment.runtime.data_dir) / INDEX_FOLDER)
     chosen: IEmbedder = embedder or build_embedder(environment)
     collections = LanceDbCollectionReadRepositoryAdapter(store)
+    uow_factory = partial(LanceDbRetrievalUnitOfWorkAdapter, store)
+    source = FilesystemDocumentSourceAdapter()
+    resolver = ChunkerResolver([MarkdownChunkerAdapter(), PythonChunkerAdapter()])
     return RetrievalHandlers(
         sync=SyncCollectionHandler(
-            uow_factory=partial(LanceDbRetrievalUnitOfWorkAdapter, store),
             manifest=LanceDbManifestReadRepositoryAdapter(store),
-            source=FilesystemDocumentSourceAdapter(),
-            resolver=ChunkerResolver([MarkdownChunkerAdapter(), PythonChunkerAdapter()]),
+            source=source,
             embedder=chosen,
-            max_retries=environment.retrieval.sync_max_retries,
-            backoff_seconds=backoff_seconds,
+            provisioner=CollectionProvisioner(uow_factory=uow_factory, embedder=chosen),
+            fingerprinter=DocumentFingerprinter(resolver),
+            indexer=DocumentIndexer(
+                uow_factory=uow_factory, source=source, resolver=resolver, embedder=chosen
+            ),
+            remover=DocumentRemover(uow_factory=uow_factory),
+            retry=RetryRunner(
+                max_retries=environment.retrieval.sync_max_retries,
+                backoff_seconds=backoff_seconds,
+            ),
         ),
         search=SearchHandler(
             collections=collections,
@@ -82,7 +98,7 @@ def build_retrieval(
             embedder=chosen,
         ),
         drop=DropCollectionHandler(
-            uow_factory=partial(LanceDbRetrievalUnitOfWorkAdapter, store),
+            uow_factory=uow_factory,
             read_repository=collections,
         ),
         list_collections=ListCollectionsHandler(read_repository=collections),
