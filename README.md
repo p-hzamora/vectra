@@ -16,3 +16,9 @@ make check         # lint, format, mypy --strict, import contracts, tests with c
 
 Every command accepts `--json` and `--help`. Exit codes: 0 ok, 1 the operation failed,
 2 invalid command line.
+
+## Docs
+
+- [docs/](docs/README.md): what vectra does, architecture, one page per command, error codes.
+- [skills/vectra/SKILL.md](skills/vectra/SKILL.md): discovery stub for agents; the command
+  reference they load is `skill_guides/vectra.md` (`vectra skills get vectra`).
