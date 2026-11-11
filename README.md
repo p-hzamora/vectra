@@ -6,6 +6,18 @@ Chunk files, embed them into a vector store, and serve semantic search to agents
 Status: working CLI. `sync`, `search`, `collections`, `config` and `skills` are implemented
 (Markdown chunking, local embeddings, LanceDB storage).
 
+## Install
+
+```bash
+curl -LsSf https://raw.githubusercontent.com/p-hzamora/vectra/main/install.sh | sh
+vectra config show                          # the env file read and the data folder
+```
+
+The installer uses `uv` if you have it, otherwise `pipx`, otherwise a private virtual
+environment built with Python 3.14+. From a checkout, `./install.sh` installs that checkout.
+Options, manual installs, the agent skill (`npx skills add p-hzamora/vectra --skill vectra -g`)
+and uninstalling: [docs/install.md](docs/install.md).
+
 ## Develop
 
 ```bash

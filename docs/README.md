@@ -5,6 +5,7 @@ vector with a local embedding model, stores the vectors in a local LanceDB datab
 answers natural-language searches over them. Everything runs on your machine. Every command
 can print a JSON envelope (`--json`), so agents and scripts can use it as a retrieval backend.
 
+- [install.md](install.md): the install script, manual installs, the agent skill, uninstalling.
 - [architecture.md](architecture.md): layers, the `retrieval` context, ports and adapters,
   chunk ids, incremental sync, scores, import contracts.
 - [workflows/](workflows/README.md): one page per command group, with real output.

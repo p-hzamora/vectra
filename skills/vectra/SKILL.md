@@ -13,7 +13,7 @@ installed version.
 ## 1. Resolve the CLI
 
 Run `vectra --version`. If it fails with "command not found", tell the user vectra is not
-installed (`uv tool install <path-to-the-vectra-repo>`) and stop. Do not try other
+installed (`curl -LsSf https://raw.githubusercontent.com/p-hzamora/vectra/main/install.sh | sh`) and stop. Do not try other
 executables and do not guess commands.
 
 ## 2. Check which config applies
