@@ -6,13 +6,16 @@ from pathlib import Path
 
 from vectra.bounded_context.retrieval.application.handlers.commands import (
     DropCollectionHandler,
+    RepairCollectionsHandler,
     SyncCollectionHandler,
 )
 from vectra.bounded_context.retrieval.application.handlers.queries import (
+    CheckCollectionProfileHandler,
     ListCollectionsHandler,
     SearchHandler,
 )
 from vectra.bounded_context.retrieval.application.ports.embedding import IEmbedder
+from vectra.bounded_context.retrieval.application.ports.progress import IProgress
 from vectra.bounded_context.retrieval.application.services import (
     ChunkerResolver,
     CollectionProvisioner,
@@ -51,6 +54,8 @@ class RetrievalHandlers:
     search: SearchHandler
     drop: DropCollectionHandler
     list_collections: ListCollectionsHandler
+    check: CheckCollectionProfileHandler
+    repair: RepairCollectionsHandler
 
 
 def build_embedder(environment: Environment) -> IEmbedder:
@@ -61,7 +66,11 @@ def build_embedder(environment: Environment) -> IEmbedder:
 
 
 def build_retrieval(
-    environment: Environment, *, embedder: IEmbedder | None = None, backoff_seconds: float = 0.5
+    environment: Environment,
+    *,
+    embedder: IEmbedder | None = None,
+    backoff_seconds: float = 0.5,
+    progress: IProgress | None = None,
 ) -> RetrievalHandlers:
     """Wire the retrieval handlers over LanceDB under `VECTRA_DATA_DIR`.
 
@@ -69,31 +78,35 @@ def build_retrieval(
         environment: Settings of this invocation.
         embedder: Replacement embedder (tests); defaults to `build_embedder`.
         backoff_seconds: Base delay between sync retries.
+        progress: Receives progress lines of sync and repair (discarded when `None`).
     """
     store = LanceDbStore(Path(environment.runtime.data_dir) / INDEX_FOLDER)
     chosen: IEmbedder = embedder or build_embedder(environment)
     collections = LanceDbCollectionReadRepositoryAdapter(store)
     uow_factory = partial(LanceDbRetrievalUnitOfWorkAdapter, store)
     source = FilesystemDocumentSourceAdapter()
+    profile_check = CheckCollectionProfileHandler(read_repository=collections, embedder=chosen)
     resolver = ChunkerResolver([MarkdownChunkerAdapter(), PythonChunkerAdapter()])
-    return RetrievalHandlers(
-        sync=SyncCollectionHandler(
-            manifest=LanceDbManifestReadRepositoryAdapter(store),
-            source=source,
-            embedder=chosen,
-            provisioner=CollectionProvisioner(uow_factory=uow_factory, embedder=chosen),
-            fingerprinter=DocumentFingerprinter(resolver),
-            indexer=DocumentIndexer(
-                uow_factory=uow_factory, source=source, resolver=resolver, embedder=chosen
-            ),
-            remover=DocumentRemover(uow_factory=uow_factory),
-            retry=RetryRunner(
-                max_retries=environment.retrieval.sync_max_retries,
-                backoff_seconds=backoff_seconds,
-            ),
+    sync = SyncCollectionHandler(
+        manifest=LanceDbManifestReadRepositoryAdapter(store),
+        source=source,
+        embedder=chosen,
+        provisioner=CollectionProvisioner(uow_factory=uow_factory, embedder=chosen),
+        fingerprinter=DocumentFingerprinter(resolver),
+        indexer=DocumentIndexer(
+            uow_factory=uow_factory, source=source, resolver=resolver, embedder=chosen
         ),
+        remover=DocumentRemover(uow_factory=uow_factory),
+        retry=RetryRunner(
+            max_retries=environment.retrieval.sync_max_retries,
+            backoff_seconds=backoff_seconds,
+        ),
+        progress=progress,
+    )
+    return RetrievalHandlers(
+        sync=sync,
         search=SearchHandler(
-            collections=collections,
+            profile_check=profile_check,
             chunks=LanceDbChunkSearchReadRepositoryAdapter(store),
             embedder=chosen,
         ),
@@ -102,4 +115,6 @@ def build_retrieval(
             read_repository=collections,
         ),
         list_collections=ListCollectionsHandler(read_repository=collections),
+        check=profile_check,
+        repair=RepairCollectionsHandler(check=profile_check, sync=sync, progress=progress),
     )

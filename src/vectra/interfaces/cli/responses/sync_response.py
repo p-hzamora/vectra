@@ -64,3 +64,36 @@ class SyncResponse(IRenderableResponse):
             for item in self.failed
         ]
         return "\n".join(lines)
+
+
+class SkippedCollectionResponse(FrozenObject):
+    """A collection left untouched by a repair.
+
+    Attributes:
+        name: Collection name.
+        code: Stable error code.
+        message: What went wrong.
+    """
+
+    name: str
+    code: str
+    message: str
+
+
+class RepairResponse(IRenderableResponse):
+    """`vectra collections check --fix`.
+
+    Attributes:
+        repaired: Rebuilt collections.
+        skipped: Collections left untouched, with the reason.
+    """
+
+    repaired: tuple[SyncResponse, ...]
+    skipped: tuple[SkippedCollectionResponse, ...]
+
+    def render(self) -> str:
+        if not self.repaired and not self.skipped:
+            return "nothing to repair"
+        lines: list[str] = [item.render() for item in self.repaired]
+        lines += [f"skipped {item.name} [{item.code}]: {item.message}" for item in self.skipped]
+        return "\n".join(lines)

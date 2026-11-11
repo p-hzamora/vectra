@@ -8,25 +8,32 @@ import typer
 
 from vectra.bounded_context.retrieval.application.dtos import (
     CollectionListDTO,
+    CollectionProfileCheckListDTO,
     DropResultDTO,
+    RepairResultDTO,
     SearchResultDTO,
     SyncResultDTO,
 )
 from vectra.bounded_context.retrieval.application.handlers.commands import (
     DEFAULT_INCLUDE,
     DropCollectionCommand,
+    RepairCollectionsCommand,
     SyncCollectionCommand,
 )
 from vectra.bounded_context.retrieval.application.handlers.queries import (
+    CheckCollectionProfileQuery,
     ListCollectionsQuery,
     SearchCollectionQuery,
 )
 from vectra.exceptions import ConfirmationRequiredError, ExitCodeEnum, NewRootRequiresRebuildError
 from vectra.interfaces.cli import bootstrap, output
-from vectra.interfaces.cli.options import JsonOption
+from vectra.interfaces.cli.options import JsonOption, VerboseOption
+from vectra.interfaces.cli.progress import progress_scope
 from vectra.interfaces.cli.responses import (
+    CollectionCheckListResponse,
     CollectionListResponse,
     DropResponse,
+    RepairResponse,
     SearchResponse,
     SyncResponse,
 )
@@ -41,8 +48,12 @@ def sync(
     context: typer.Context,
     name: NameArgument,
     root: Annotated[
-        Path, typer.Argument(help="Folder to index (a collection keeps its first root).")
-    ],
+        Path | None,
+        typer.Argument(
+            help="Folder to index (a collection keeps its first root); "
+            "omit it to reuse the collection's own."
+        ),
+    ] = None,
     include: Annotated[
         list[str] | None, typer.Option("--include", help="Glob to index (repeatable).")
     ] = None,
@@ -73,29 +84,31 @@ def sync(
         ),
     ] = False,
     as_json: JsonOption = False,
+    verbose: VerboseOption = False,
 ) -> int:
-    """Index the changes of ROOT into collection NAME (created on first use). Exit 1 if any file failed."""
+    """Index the changes of ROOT (default: the collection's root) into collection NAME.
+
+    The collection is created on first use, which needs ROOT. Exit 1 if any file failed.
+    """
     if new_root and not rebuild:
         raise NewRootRequiresRebuildError(
             "--new-root only applies together with --rebuild.",
             {"new_root": True, "rebuild": False},
             next_steps=["Add --rebuild, or drop --new-root."],
         )
-    handlers = bootstrap.build_retrieval(cli_state(context).environment())
-    result: SyncResultDTO = asyncio.run(
-        handlers.sync.handle(
-            SyncCollectionCommand(
-                collection=name,
-                root=str(root.expanduser().resolve()),
-                include=tuple(include) if include else DEFAULT_INCLUDE,
-                exclude=tuple(exclude or ()),
-                dry_run=dry_run,
-                allow_mass_delete=allow_mass_delete,
-                rebuild=rebuild,
-                allow_new_root=new_root,
-            )
-        )
+    command = SyncCollectionCommand(
+        collection=name,
+        root=str(root.expanduser().resolve()) if root else None,
+        include=tuple(include) if include else DEFAULT_INCLUDE,
+        exclude=tuple(exclude or ()),
+        dry_run=dry_run,
+        allow_mass_delete=allow_mass_delete,
+        rebuild=rebuild,
+        allow_new_root=new_root,
     )
+    with progress_scope(verbose) as progress:
+        handlers = bootstrap.build_retrieval(cli_state(context).environment(), progress=progress)
+        result: SyncResultDTO = asyncio.run(handlers.sync.handle(command))
     output.emit(SyncResponse.model_validate(result))
     return ExitCodeEnum.FAILURE if result.failed else ExitCodeEnum.OK
 
@@ -137,6 +150,56 @@ def list_collections(context: typer.Context, as_json: JsonOption = False) -> Non
         handlers.list_collections.handle(ListCollectionsQuery())
     )
     output.emit(CollectionListResponse.model_validate(result))
+
+
+@collections_app.command("check")
+def check(
+    context: typer.Context,
+    name: Annotated[
+        str | None, typer.Argument(help="Collection name; omit to check every collection.")
+    ] = None,
+    fix: Annotated[
+        bool,
+        typer.Option(
+            "--fix",
+            help="Rebuild out-of-sync collections from their own roots (re-embeds everything).",
+        ),
+    ] = False,
+    yes: Annotated[bool, typer.Option("--yes", help="Confirm --fix.")] = False,
+    as_json: JsonOption = False,
+    verbose: VerboseOption = False,
+) -> int:
+    """Check that collections were built with the configured embedding model. Exit 1 on mismatch."""
+    if fix and not yes:
+        raise ConfirmationRequiredError(
+            "Fixing drops and re-embeds every out-of-sync collection.",
+            {"collection": name},
+            next_steps=["Run `vectra collections check --fix --yes`."],
+        )
+    if fix:
+        with progress_scope(verbose) as progress:
+            handlers = bootstrap.build_retrieval(
+                cli_state(context).environment(), progress=progress
+            )
+            repaired: RepairResultDTO = asyncio.run(
+                handlers.repair.handle(RepairCollectionsCommand(collection=name))
+            )
+        output.emit(RepairResponse.model_validate(repaired))
+        failed = repaired.skipped or any(item.failed for item in repaired.repaired)
+        return ExitCodeEnum.FAILURE if failed else ExitCodeEnum.OK
+    handlers = bootstrap.build_retrieval(cli_state(context).environment())
+    result: CollectionProfileCheckListDTO = asyncio.run(
+        handlers.check.handle(CheckCollectionProfileQuery(collection=name))
+    )
+    output.emit(
+        CollectionCheckListResponse.model_validate(
+            {
+                "in_sync": result.in_sync,
+                "collections": [item.model_dump() for item in result.collections],
+            }
+        )
+    )
+    return ExitCodeEnum.OK if result.in_sync else ExitCodeEnum.FAILURE
 
 
 @collections_app.command("drop")

@@ -13,6 +13,10 @@ JsonOption = Annotated[
         "--json", help="Print a JSON envelope instead of text.", callback=output.remember_json_mode
     ),
 ]
+VerboseOption = Annotated[
+    bool,
+    typer.Option("--verbose", "-v", help="Show progress on stderr while working."),
+]
 EnvFileOption = Annotated[
     Path | None,
     typer.Option(

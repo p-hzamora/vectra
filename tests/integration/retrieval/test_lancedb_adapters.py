@@ -19,6 +19,7 @@ from vectra.bounded_context.retrieval.application.handlers.commands import (
     SyncCollectionHandler,
 )
 from vectra.bounded_context.retrieval.application.handlers.queries import (
+    CheckCollectionProfileHandler,
     ListCollectionsHandler,
     ListCollectionsQuery,
     SearchCollectionQuery,
@@ -77,7 +78,9 @@ class Stack:
 
     def search(self) -> SearchHandler:
         return SearchHandler(
-            collections=self.collections,
+            profile_check=CheckCollectionProfileHandler(
+                read_repository=self.collections, embedder=self.embedder
+            ),
             chunks=LanceDbChunkSearchReadRepositoryAdapter(self.store),
             embedder=self.embedder,
         )

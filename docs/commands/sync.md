@@ -1,4 +1,4 @@
-# `vectra sync NAME ROOT`
+# `vectra sync NAME [ROOT]`
 
 Purpose: make collection `NAME` match the files under `ROOT`. The collection is created on the
 first sync and bound to that root. Re-running is safe: only new, changed and removed files are
@@ -23,6 +23,7 @@ with a letter or digit.
 | `--allow-mass-delete` | Allow deleting more than half of the indexed documents. |
 | `--rebuild` | Drop the collection and recreate it with the current model, then index everything. Keeps its root. |
 | `--new-root` | With `--rebuild`, rebind the collection to this ROOT. Without `--rebuild`: exit 2. |
+| `--verbose`, `-v` | Progress on stderr: a spinner plus one line per step (scan, plan, model, each file added, updated, deleted or failed). stdout is unchanged, so `--json` stays parseable. |
 | `--json` | JSON envelope. |
 
 ## How it runs
@@ -104,6 +105,7 @@ reported per file, with `attempts` 0, and the exit code is 1:
 | Situation | Code | Exit |
 |---|---|---|
 | ROOT is not a folder | `RETRIEVAL_102_SOURCE_ROOT_INVALID` | 1 |
+| ROOT omitted for a collection that does not exist | `RETRIEVAL_102_SOURCE_ROOT_INVALID` | 1 |
 | Collection is bound to another root | `RETRIEVAL_102_SOURCE_ROOT_INVALID` | 1 |
 | Configured model or dimension differs from the collection's | `RETRIEVAL_003_INDEX_PROFILE_MISMATCH` | 1 |
 | More than half of the documents would be deleted | `RETRIEVAL_103_MASS_DELETE_REFUSED` | 1 |
@@ -133,7 +135,7 @@ With `--dry-run` the same plan returns `ok: true` and a warning: `"The real sync
 (3 of 3 indexed documents would be deleted) without --allow-mass-delete."`
 
 To change the model: set `VECTRA_EMBEDDING_MODEL_ID` and `VECTRA_EMBEDDING_DIMENSION`, then run
-`vectra sync NAME ROOT --rebuild`. To move a collection to another folder, add `--new-root`.
+`vectra sync NAME --rebuild` (ROOT is optional for an existing collection and defaults to its own root), or `vectra collections check --fix --yes` for all of them. To move a collection to another folder, add `--new-root`.
 
 Performance: the model loads once per process (see [../README.md](../README.md)); a dry run does
 not load it. Index large folders only on purpose, and try `--dry-run` first.

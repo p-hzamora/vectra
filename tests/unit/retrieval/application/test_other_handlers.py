@@ -18,6 +18,8 @@ from vectra.bounded_context.retrieval.application.handlers.commands import (
     SyncCollectionCommand,
 )
 from vectra.bounded_context.retrieval.application.handlers.queries import (
+    CheckCollectionProfileHandler,
+    CheckCollectionProfileQuery,
     ListCollectionsHandler,
     ListCollectionsQuery,
     SearchCollectionQuery,
@@ -73,7 +75,9 @@ def _hit(path: str, score: float, chunk: str) -> ChunkHitDTO:
 
 async def _search_handler(store: FakeRetrievalStore, embedder: FakeEmbedder) -> SearchHandler:
     return SearchHandler(
-        collections=FakeCollectionReadRepository(store),
+        profile_check=CheckCollectionProfileHandler(
+            read_repository=FakeCollectionReadRepository(store), embedder=embedder
+        ),
         chunks=FakeChunkSearchReadRepository(store),
         embedder=embedder,
     )
@@ -111,3 +115,25 @@ async def test_search_validates_the_query() -> None:
     handler = await _search_handler(await _seeded_store(), FakeEmbedder())
     with pytest.raises(InvalidSearchQueryError):
         await handler.handle(SearchCollectionQuery(collection="docs", text="x", top_k=0))
+
+
+async def test_check_reports_each_collection_against_the_configured_model() -> None:
+    store = await _seeded_store()
+    repository = FakeCollectionReadRepository(store)
+    synced = await CheckCollectionProfileHandler(
+        read_repository=repository, embedder=FakeEmbedder()
+    ).handle(CheckCollectionProfileQuery())
+    assert synced.in_sync
+    drifted = await CheckCollectionProfileHandler(
+        read_repository=repository, embedder=FakeEmbedder(model_id="other")
+    ).handle(CheckCollectionProfileQuery(collection="docs"))
+    assert not drifted.in_sync
+    assert drifted.collections[0].configured_model_id == "other"
+
+
+async def test_check_unknown_collection_is_101() -> None:
+    handler = CheckCollectionProfileHandler(
+        read_repository=FakeCollectionReadRepository(FakeRetrievalStore()), embedder=FakeEmbedder()
+    )
+    with pytest.raises(CollectionNotFoundError):
+        await handler.handle(CheckCollectionProfileQuery(collection="nope"))

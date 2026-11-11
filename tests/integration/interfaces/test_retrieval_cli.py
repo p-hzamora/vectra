@@ -1,6 +1,7 @@
 """The retrieval commands: JSON envelope, text output and exit codes."""
 
 import json
+import shutil
 from pathlib import Path
 
 import pytest
@@ -312,3 +313,79 @@ def test_rebuild_with_new_root_rebinds_the_root(
     capsys.readouterr()
     assert run(["sync", "notes", str(other), "--rebuild", "--new-root", "--json"]) == 0
     assert _result(capsys)["added"] == ["x.md"]
+
+
+def test_collections_check_flags_a_changed_model_and_search_refuses_it(
+    capsys: pytest.CaptureFixture[str],
+    docs: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert run(["sync", "notes", str(docs), "--json"]) == 0
+    capsys.readouterr()
+    assert run(["collections", "check", "--json"]) == 0
+    assert _result(capsys)["in_sync"] is True
+    other = FakeEmbedder(model_id="other-model")
+    monkeypatch.setattr(bootstrap, "build_embedder", lambda environment: other)
+    assert run(["collections", "check", "notes", "--json"]) == 1
+    assert _result(capsys)["in_sync"] is False
+    assert run(["search", "notes", "x", "--json"]) == 1
+    assert _error(capsys)["code"] == "RETRIEVAL_003_INDEX_PROFILE_MISMATCH"
+
+
+def test_sync_without_root_reuses_the_collection_root(
+    capsys: pytest.CaptureFixture[str], docs: Path
+) -> None:
+    assert run(["sync", "notes", str(docs), "--json"]) == 0
+    capsys.readouterr()
+    assert run(["sync", "notes", "--json"]) == 0
+    assert _result(capsys)["unchanged"] == 2
+    assert run(["sync", "fresh", "--json"]) == 1
+    assert _error(capsys)["code"] == "RETRIEVAL_102_SOURCE_ROOT_INVALID"
+
+
+def test_check_fix_rebuilds_out_of_sync_collections(
+    capsys: pytest.CaptureFixture[str],
+    docs: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert run(["sync", "notes", str(docs), "--json"]) == 0
+    capsys.readouterr()
+    other = FakeEmbedder(model_id="other-model")
+    monkeypatch.setattr(bootstrap, "build_embedder", lambda environment: other)
+    assert run(["collections", "check", "--fix", "--json"]) == 2
+    assert _error(capsys)["code"] == "INTERFACE_002_CONFIRMATION_REQUIRED"
+    assert run(["collections", "check", "--fix", "--yes", "--json"]) == 0
+    repaired = _result(capsys)["repaired"]
+    assert isinstance(repaired, list)
+    assert (repaired[0]["collection"], repaired[0]["created"]) == ("notes", True)
+    assert run(["collections", "check", "--json"]) == 0
+    assert _result(capsys)["in_sync"] is True
+
+
+def test_check_fix_skips_a_collection_whose_root_is_gone(
+    capsys: pytest.CaptureFixture[str],
+    docs: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert run(["sync", "notes", str(docs), "--json"]) == 0
+    capsys.readouterr()
+    shutil.rmtree(docs)
+    other = FakeEmbedder(model_id="other-model")
+    monkeypatch.setattr(bootstrap, "build_embedder", lambda environment: other)
+    assert run(["collections", "check", "--fix", "--yes", "--json"]) == 1
+    result = _result(capsys)
+    assert result["repaired"] == []
+    assert result["skipped"][0]["name"] == "notes"  # type: ignore[index]
+    assert run(["collections", "check", "--json"]) == 1
+
+
+def test_verbose_reports_progress_on_stderr_and_keeps_stdout_clean(
+    capsys: pytest.CaptureFixture[str], docs: Path
+) -> None:
+    assert run(["sync", "notes", str(docs), "--verbose", "--json"]) == 0
+    captured = capsys.readouterr()
+    assert json.loads(captured.out)["ok"] is True
+    assert "scanning" in captured.err
+    assert "[2/2] added" in captured.err
+    assert run(["sync", "notes", str(docs), "--json"]) == 0
+    assert capsys.readouterr().err == ""

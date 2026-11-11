@@ -2,13 +2,12 @@
 
 from vectra.bounded_context.retrieval.application.dtos import (
     ChunkHitDTO,
-    CollectionStatusDTO,
+    CollectionProfileCheckDTO,
     SearchResultDTO,
 )
 from vectra.bounded_context.retrieval.application.ports.embedding import IEmbedder
 from vectra.bounded_context.retrieval.application.ports.read_repositories import (
     IChunkSearchReadRepository,
-    ICollectionReadRepository,
 )
 from vectra.bounded_context.retrieval.application.services import (
     OVER_FETCH_FACTOR,
@@ -19,9 +18,13 @@ from vectra.bounded_context.retrieval.domain.value_objects import (
     EmbeddingProfile,
     SearchQuery,
 )
-from vectra.exceptions import CollectionNotFoundError
 from vectra.shared_kernel.application.handlers import IHandler
 from vectra.utils import FrozenObject
+
+from .check_collection_profile_handler import (
+    CheckCollectionProfileHandler,
+    CheckCollectionProfileQuery,
+)
 
 
 class SearchCollectionQuery(FrozenObject):
@@ -48,12 +51,12 @@ class SearchHandler(IHandler[SearchCollectionQuery, SearchResultDTO]):
     def __init__(
         self,
         *,
-        collections: ICollectionReadRepository,
+        profile_check: CheckCollectionProfileHandler,
         chunks: IChunkSearchReadRepository,
         embedder: IEmbedder,
         grouper: DocumentHitGrouper | None = None,
     ) -> None:
-        self._collections: ICollectionReadRepository = collections
+        self._profile_check: CheckCollectionProfileHandler = profile_check
         self._chunks: IChunkSearchReadRepository = chunks
         self._embedder: IEmbedder = embedder
         self._grouper: DocumentHitGrouper = grouper or DocumentHitGrouper()
@@ -71,17 +74,16 @@ class SearchHandler(IHandler[SearchCollectionQuery, SearchResultDTO]):
             path_prefix=action.path_prefix,
             min_score=action.min_score,
         )
-        status: CollectionStatusDTO | None = await self._collections.get_status(action.collection)
-        if status is None:
-            raise CollectionNotFoundError(
-                f"No collection named {action.collection!r}.",
-                {"collection": action.collection},
-                next_steps=["Run `vectra collections list`, or `vectra sync` to create it."],
+        check: CollectionProfileCheckDTO = (
+            await self._profile_check.handle(
+                CheckCollectionProfileQuery(collection=action.collection)
             )
-        self._embedder.profile.assert_matches(
-            EmbeddingProfile(model_id=status.model_id, dimension=status.dimension),
-            action.collection,
-        )
+        ).collections[0]
+        if not check.in_sync:
+            self._embedder.profile.assert_matches(
+                EmbeddingProfile(model_id=check.model_id, dimension=check.dimension),
+                action.collection,
+            )
         vector: Embedding = await self._embedder.embed_query(query.text)
         hits: list[ChunkHitDTO] = await self._chunks.search(
             action.collection, vector.values, query.path_prefix, query.top_k * OVER_FETCH_FACTOR
