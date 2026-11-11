@@ -14,6 +14,7 @@ from .interface_errors import (
     ConfirmationRequiredError,
     NewRootRequiresRebuildError,
     SkillGuideNotFoundError,
+    UsageError,
 )
 from .retrieval_errors import (
     ChunkingFailedError,
@@ -55,5 +56,6 @@ __all__ = [
     "NewRootRequiresRebuildError",
     "SkillGuideNotFoundError",
     "SourceRootInvalidError",
+    "UsageError",
     "VectorStoreError",
 ]

@@ -7,7 +7,7 @@ from typing import Annotated
 import typer
 
 from vectra import __version__
-from vectra.exceptions import AppException, ExitCodeEnum
+from vectra.exceptions import AppException, ExitCodeEnum, UsageError
 from vectra.interfaces.cli import commands
 
 from . import output
@@ -57,6 +57,28 @@ def root(
     context.obj = CliState(env_file=env_file)
 
 
+def _usage_error(error: typer.TyperException, argv: Sequence[str]) -> int:
+    """Report a command-line mistake: the JSON envelope with `--json`, Typer's usage text otherwise."""
+    exit_code: int = int(getattr(error, "exit_code", ExitCodeEnum.USAGE))
+    if "--json" not in argv:
+        show: object = getattr(error, "show", None)
+        if callable(show):
+            show()
+        return exit_code
+    output.remember_json_mode(True)
+    context: object = getattr(error, "ctx", None)
+    format_message: object = getattr(error, "format_message", None)
+    message: str = str(format_message() if callable(format_message) else error)
+    command_path: str = str(getattr(context, "command_path", PROGRAM))
+    output.emit_error(
+        UsageError(
+            message,
+            next_steps=[f"Run `{command_path} --help` to see the arguments and options."],
+        )
+    )
+    return exit_code
+
+
 def run(argv: Sequence[str]) -> int:
     """Run one command line and return its exit code (the testable entry point).
 
@@ -72,10 +94,7 @@ def run(argv: Sequence[str]) -> int:
         except typer.Abort:
             return ExitCodeEnum.FAILURE
         except typer.TyperException as error:  # usage errors raised by Typer's bundled click
-            show: object = getattr(error, "show", None)
-            if callable(show):
-                show()
-            return int(getattr(error, "exit_code", ExitCodeEnum.USAGE))
+            return _usage_error(error, argv)
         except AppException as error:
             output.emit_error(error)
             return error.exit_code

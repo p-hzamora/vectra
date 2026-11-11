@@ -23,6 +23,34 @@ def test_unknown_command_is_a_usage_error() -> None:
     assert run(["nope"]) == 2
 
 
+@pytest.mark.parametrize(
+    ("argv", "message"),
+    [
+        (["search", "--json"], "Missing argument 'name'."),
+        (["sync", "demo", "root", "--bogus", "--json"], "No such option: --bogus"),
+        (["search", "demo", "q", "--top-k", "x", "--json"], "Invalid value"),
+    ],
+)
+def test_usage_error_with_json_is_an_envelope(
+    capsys: pytest.CaptureFixture[str], argv: list[str], message: str
+) -> None:
+    assert run(argv) == 2
+    captured = capsys.readouterr()
+    error = json.loads(captured.out)["error"]
+    assert error["code"] == "INTERFACE_004_USAGE_ERROR"
+    assert message in error["message"]
+    assert error["next_steps"]
+    assert captured.err == ""
+
+
+def test_usage_error_without_json_prints_usage(capsys: pytest.CaptureFixture[str]) -> None:
+    assert run(["search"]) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "Usage:" in captured.err
+    assert "Missing argument 'name'" in captured.err
+
+
 def test_config_show_reports_default_locations(
     capsys: pytest.CaptureFixture[str], isolated_home: Path
 ) -> None:
