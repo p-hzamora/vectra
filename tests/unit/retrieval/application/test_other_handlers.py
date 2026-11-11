@@ -3,21 +3,19 @@
 import pytest
 
 from tests.support.retrieval_fakes import (
-    FIXED_NOW,
     FakeChunker,
     FakeChunkSearchReadRepository,
     FakeCollectionReadRepository,
     FakeEmbedder,
     FakeRetrievalStore,
     FakeSource,
-    no_sleep,
+    build_sync_handler,
 )
 from vectra.bounded_context.retrieval.application.dtos import ChunkHitDTO
 from vectra.bounded_context.retrieval.application.handlers.commands import (
     DropCollectionCommand,
     DropCollectionHandler,
     SyncCollectionCommand,
-    SyncCollectionHandler,
 )
 from vectra.bounded_context.retrieval.application.handlers.queries import (
     ListCollectionsHandler,
@@ -25,7 +23,6 @@ from vectra.bounded_context.retrieval.application.handlers.queries import (
     SearchCollectionQuery,
     SearchHandler,
 )
-from vectra.bounded_context.retrieval.application.services import ChunkerResolver
 from vectra.exceptions import (
     CollectionNotFoundError,
     EmbeddingProfileMismatchError,
@@ -37,16 +34,12 @@ pytestmark = pytest.mark.unit
 
 async def _seeded_store() -> FakeRetrievalStore:
     store = FakeRetrievalStore()
-    sleep, _ = no_sleep()
-    await SyncCollectionHandler(
+    await build_sync_handler(
         uow_factory=store.uow,
         manifest=store.manifest(),
         source=FakeSource({"a.md": "alpha\n\nbeta"}),
-        resolver=ChunkerResolver([FakeChunker()]),
         embedder=FakeEmbedder(),
-        max_retries=0,
-        sleep=sleep,
-        clock=lambda: FIXED_NOW,
+        chunker=FakeChunker(),
     ).handle(SyncCollectionCommand(collection="docs", root="/r"))
     return store
 

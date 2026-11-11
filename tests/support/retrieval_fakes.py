@@ -14,6 +14,7 @@ from vectra.bounded_context.retrieval.application.dtos import (
     ManifestEntryDTO,
     SourceFileDTO,
 )
+from vectra.bounded_context.retrieval.application.handlers.commands import SyncCollectionHandler
 from vectra.bounded_context.retrieval.application.ports.chunking import IChunker
 from vectra.bounded_context.retrieval.application.ports.embedding import IEmbedder
 from vectra.bounded_context.retrieval.application.ports.read_repositories import (
@@ -23,6 +24,14 @@ from vectra.bounded_context.retrieval.application.ports.read_repositories import
 )
 from vectra.bounded_context.retrieval.application.ports.source import IDocumentSource
 from vectra.bounded_context.retrieval.application.ports.uow import IRetrievalUnitOfWork
+from vectra.bounded_context.retrieval.application.services import (
+    ChunkerResolver,
+    CollectionProvisioner,
+    DocumentFingerprinter,
+    DocumentIndexer,
+    DocumentRemover,
+    RetryRunner,
+)
 from vectra.bounded_context.retrieval.domain.entities import Collection, IndexedDocument
 from vectra.bounded_context.retrieval.domain.repositories import (
     ICollectionRepository,
@@ -268,3 +277,33 @@ def no_sleep() -> tuple[Callable[[float], Awaitable[None]], list[float]]:
 
 
 FIXED_NOW: datetime = datetime(2026, 1, 1, tzinfo=UTC)
+
+
+def build_sync_handler(
+    *,
+    uow_factory: Callable[[], IRetrievalUnitOfWork],
+    manifest: IManifestReadRepository,
+    source: IDocumentSource,
+    embedder: IEmbedder,
+    chunker: IChunker,
+    max_retries: int = 0,
+    sleep: Callable[[float], Awaitable[None]] | None = None,
+) -> SyncCollectionHandler:
+    """A `SyncCollectionHandler` wired over the given adapters, with a fixed clock."""
+    resolver = ChunkerResolver([chunker])
+    return SyncCollectionHandler(
+        manifest=manifest,
+        source=source,
+        embedder=embedder,
+        provisioner=CollectionProvisioner(
+            uow_factory=uow_factory, embedder=embedder, clock=lambda: FIXED_NOW
+        ),
+        fingerprinter=DocumentFingerprinter(resolver),
+        indexer=DocumentIndexer(
+            uow_factory=uow_factory, source=source, resolver=resolver, embedder=embedder
+        ),
+        remover=DocumentRemover(uow_factory=uow_factory),
+        retry=RetryRunner(
+            max_retries=max_retries, backoff_seconds=0.1, sleep=sleep or no_sleep()[0]
+        ),
+    )

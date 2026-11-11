@@ -107,3 +107,21 @@ def test_source_root_must_be_absolute() -> None:
     assert SourceRoot(value="/a/b").value == "/a/b"
     with pytest.raises(SourceRootInvalidError):
         SourceRoot(value="a/b")
+
+
+def test_profile_accepts_the_expected_vectors() -> None:
+    profile = EmbeddingProfile(model_id="m", dimension=2)
+    vectors = [Embedding(values=(1.0, 0.0)), Embedding(values=(0.0, 1.0))]
+    profile.assert_embeddings(vectors, 2, "a.md")
+
+
+@pytest.mark.parametrize(
+    "vectors",
+    [[Embedding(values=(1.0, 0.0))], [Embedding(values=(1.0,)), Embedding(values=(1.0, 0.0))]],
+    ids=["wrong-count", "wrong-dimension"],
+)
+def test_profile_rejects_unexpected_vectors(vectors: list[Embedding]) -> None:
+    profile = EmbeddingProfile(model_id="m", dimension=2)
+    with pytest.raises(EmbeddingDimensionMismatchError) as raised:
+        profile.assert_embeddings(vectors, 2, "a.md")
+    assert raised.value.metadata == {"path": "a.md"}

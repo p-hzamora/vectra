@@ -5,7 +5,13 @@ from pathlib import Path
 
 import pytest
 
-from tests.support.retrieval_fakes import FIXED_NOW, FakeEmbedder, FakeSource, no_sleep
+from tests.support.retrieval_fakes import (
+    FIXED_NOW,
+    FakeEmbedder,
+    FakeSource,
+    build_sync_handler,
+    no_sleep,
+)
 from vectra.bounded_context.retrieval.application.handlers.commands import (
     DropCollectionCommand,
     DropCollectionHandler,
@@ -18,7 +24,6 @@ from vectra.bounded_context.retrieval.application.handlers.queries import (
     SearchCollectionQuery,
     SearchHandler,
 )
-from vectra.bounded_context.retrieval.application.services import ChunkerResolver
 from vectra.bounded_context.retrieval.domain.entities import IndexedDocument
 from vectra.bounded_context.retrieval.domain.value_objects import (
     ChunkId,
@@ -61,15 +66,13 @@ class Stack:
         return LanceDbRetrievalUnitOfWorkAdapter(self.store)
 
     def sync(self) -> SyncCollectionHandler:
-        return SyncCollectionHandler(
+        return build_sync_handler(
             uow_factory=self.uow,
             manifest=LanceDbManifestReadRepositoryAdapter(self.store),
             source=self.source,
-            resolver=ChunkerResolver([MarkdownChunkerAdapter()]),
             embedder=self.embedder,
-            max_retries=0,
+            chunker=MarkdownChunkerAdapter(),
             sleep=self.sleep,
-            clock=lambda: FIXED_NOW,
         )
 
     def search(self) -> SearchHandler:

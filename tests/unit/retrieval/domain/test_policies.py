@@ -5,6 +5,7 @@ import hashlib
 import pytest
 
 from vectra.bounded_context.retrieval.domain.policies import (
+    MassDeletePolicy,
     StableChunkIdPolicy,
     SyncPlanningPolicy,
 )
@@ -98,3 +99,28 @@ def test_editing_another_chunk_does_not_change_ids() -> None:
     after = policy.assign(name, path, [_chunk("ONE edited", "A"), _chunk("two", "B")])
     assert after[1] == before[1]
     assert after[0] != before[0]
+
+
+def _refusal(to_delete: int, indexed: int, *, allowed: bool = False) -> object:
+    return MassDeletePolicy().refusal(
+        collection="docs", to_delete=to_delete, indexed=indexed, allowed=allowed
+    )
+
+
+def test_mass_delete_over_half_is_refused_with_context() -> None:
+    refusal = MassDeletePolicy().refusal(collection="docs", to_delete=3, indexed=4, allowed=False)
+    assert refusal is not None
+    assert refusal.error_code == "RETRIEVAL_103_MASS_DELETE_REFUSED"
+    assert refusal.metadata == {"collection": "docs", "to_delete": 3, "indexed": 4}
+
+
+def test_mass_delete_of_exactly_half_is_accepted() -> None:
+    assert _refusal(2, 4) is None
+
+
+def test_mass_delete_is_accepted_when_the_caller_opted_in() -> None:
+    assert _refusal(4, 4, allowed=True) is None
+
+
+def test_mass_delete_is_accepted_when_nothing_is_indexed() -> None:
+    assert _refusal(0, 0) is None

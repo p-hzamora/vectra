@@ -8,6 +8,7 @@ from tests.support.retrieval_fakes import (
     FakeEmbedder,
     FakeRetrievalStore,
     FakeSource,
+    build_sync_handler,
     no_sleep,
 )
 from vectra.bounded_context.retrieval.application.dtos import SyncResultDTO
@@ -15,7 +16,6 @@ from vectra.bounded_context.retrieval.application.handlers.commands import (
     SyncCollectionCommand,
     SyncCollectionHandler,
 )
-from vectra.bounded_context.retrieval.application.services import ChunkerResolver
 from vectra.exceptions import (
     EmbeddingProfileMismatchError,
     MassDeleteRefusedError,
@@ -37,16 +37,14 @@ class Rig:
         self.max_retries = max_retries
 
     def handler(self) -> SyncCollectionHandler:
-        return SyncCollectionHandler(
+        return build_sync_handler(
             uow_factory=self.store.uow,
             manifest=self.store.manifest(),
             source=self.source,
-            resolver=ChunkerResolver([self.chunker]),
             embedder=self.embedder,
+            chunker=self.chunker,
             max_retries=self.max_retries,
-            backoff_seconds=0.1,
             sleep=self.sleep,
-            clock=lambda: FIXED_NOW,
         )
 
     async def sync(self, **options: object) -> SyncResultDTO:
