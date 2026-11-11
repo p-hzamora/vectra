@@ -47,7 +47,7 @@ Branch on `code`, not on the message. Code groups: `CORE_` configuration,
 | `RETRIEVAL_204_CHUNKING_FAILED` | 1 | No chunker handles the file extension. | `sync` (per file) |
 
 Also, `RETRIEVAL_000_UNEXPECTED` appears only in a sync's `failed` list, for a file that failed
-with an exception that is not a vectra error (`sync_collection_handler.py`).
+with an exception that is not a vectra error (`retry_runner.py`).
 
 ## Per-file failures in `sync`
 

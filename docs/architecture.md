@@ -97,9 +97,11 @@ others, and adding a duplicate never renames an existing chunk.
 `SyncPlanningPolicy` (`domain/policies/sync_planning_policy.py`) compares the scanned files with
 the manifest. A document is stale when its content hash (SHA-256 of the file bytes) or its
 chunker version differs. Result groups: `add` (not indexed), `update` (stale), `delete` (indexed,
-no longer on disk), `unchanged`. `SyncCollectionHandler` then indexes each added or updated
-document (chunk, embed, store) and removes each deleted one. Each document is its own unit of
-work, so one failing file does not stop the rest. The store has no cross-table transaction:
+no longer on disk), `unchanged`. `SyncCollectionHandler` only orchestrates: `DocumentIndexer` chunks, embeds and stores each
+added or updated document, `DocumentRemover` removes each deleted one, and `RetryRunner` retries
+each with backoff. `MassDeletePolicy` refuses a sync that would delete more than half of the
+indexed documents. Each document is its own unit of work, so one failing file does not stop the
+rest. The store has no cross-table transaction:
 the manifest entry is written last, so a crash leaves the document stale and the next sync
 repairs it. See [commands/sync.md](commands/sync.md).
 
