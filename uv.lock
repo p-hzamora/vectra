@@ -1756,6 +1756,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "pyyaml" },
+    { name = "rich" },
     { name = "sentence-transformers" },
     { name = "typer" },
 ]
@@ -1778,6 +1779,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.12,<3" },
     { name = "pydantic-settings", specifier = ">=2.11,<3" },
     { name = "pyyaml", specifier = ">=6.0.3" },
+    { name = "rich", specifier = ">=13" },
     { name = "sentence-transformers", specifier = ">=6.2.0" },
     { name = "typer", specifier = ">=0.20,<1" },
 ]
