@@ -31,17 +31,17 @@ Settings (environment variables):
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `NOESIS_SOURCE` | this checkout, else `https://github.com/p-hzamora/vectra` | git URL or local path to install |
-| `NOESIS_REF` | `main` | branch, tag or commit, for a git source |
-| `NOESIS_INSTALLER` | auto | force `uv`, `pipx` or `venv` |
-| `NOESIS_HOME` | `~/.local/share/vectra` | venv installer only: where the venv goes |
-| `NOESIS_BIN_DIR` | `~/.local/bin` | venv installer only: where the launcher goes |
+| `VECTRA_SOURCE` | this checkout, else `https://github.com/p-hzamora/vectra` | git URL or local path to install |
+| `VECTRA_REF` | `main` | branch, tag or commit, for a git source |
+| `VECTRA_INSTALLER` | auto | force `uv`, `pipx` or `venv` |
+| `VECTRA_HOME` | `~/.local/share/vectra` | venv installer only: where the venv goes |
+| `VECTRA_BIN_DIR` | `~/.local/bin` | venv installer only: where the launcher goes |
 
 Example: to install a given commit with pipx:
 
 ```bash
 curl -LsSf https://raw.githubusercontent.com/p-hzamora/vectra/main/install.sh \
-  | NOESIS_REF=<commit-or-tag> NOESIS_INSTALLER=pipx sh
+  | VECTRA_REF=<commit-or-tag> VECTRA_INSTALLER=pipx sh
 ```
 
 To upgrade, run the installer again; it replaces the existing install. To uninstall:
