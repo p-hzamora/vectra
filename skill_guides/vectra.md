@@ -8,8 +8,17 @@ not covered here.
 
 - Always add `--json`. Parse the envelope: `{"ok": true, "result": ...}` or
   `{"ok": false, "error": {"code", "message", "next_steps"}}`. Branch on `error.code`.
-- Exit codes: 0 ok, 1 the operation failed, 2 invalid command line.
-- Retrieval error codes start with `RETRIEVAL_`; `next_steps` says how to recover.
+- Exit codes: 0 ok; 1 the operation failed, including domain validation
+  (`RETRIEVAL_001_INVALID_COLLECTION_NAME`, `RETRIEVAL_004_INVALID_SEARCH_QUERY` for a bad
+  `--top-k` / `--min-score`); 2 only for command-line usage errors and `INTERFACE_*` errors.
+- Error codes start with `RETRIEVAL_` (indexing and search), `CORE_` (configuration, e.g.
+  `CORE_001_INVALID_CONFIGURATION`) or `INTERFACE_` (command line: `INTERFACE_001`..`004`;
+  `INTERFACE_004_USAGE_ERROR` is a missing argument, unknown option or bad value, and is an
+  envelope when `--json` is present). `next_steps` says how to recover. Full list:
+  `docs/workflows/errors.md`.
+- `--env-file <path>` is global: it goes before the subcommand; `--json` goes after it.
+- Collection names: lowercase letters, digits, `-`, `_`; 1 to 63 characters; first one a letter or
+  digit (otherwise `RETRIEVAL_001_INVALID_COLLECTION_NAME`).
 - Never guess commands or flags. If something is not in this guide, run `--help`.
 
 ## Commands
@@ -31,11 +40,15 @@ not covered here.
     not refused: the plan is returned with a `result.warnings` entry saying the real sync would be.
   - A file that keeps failing is retried `VECTRA_SYNC_MAX_RETRIES` times (default 2), then listed in
     `result.failed` (`path`, `code`, `message`, `attempts`) while the rest continues; the exit code
-    is 1 if any file failed. `result.warnings` carries non-fatal notes such as ignored malformed
+    is 1 if any file failed. Per-file codes: `RETRIEVAL_203_DOCUMENT_UNREADABLE`,
+    `RETRIEVAL_204_CHUNKING_FAILED`, `RETRIEVAL_000_UNEXPECTED` (a non-vectra exception). A file
+    with an unsupported extension is listed as `RETRIEVAL_204_CHUNKING_FAILED` with `attempts` 0.
+    Files are also reindexed when the chunker version changes. `result.warnings` carries non-fatal notes such as ignored malformed
     frontmatter.
 - `vectra search <name> "<query>" --json`: semantic search, one hit per document, best first
-  (`path`, `score` 0..1, `heading_path`, `snippet`, `chunk_id`). Options: `--top-k` (default 5),
-  `--path-prefix <dir/>`, `--min-score`. Fails with `RETRIEVAL_003_INDEX_PROFILE_MISMATCH` if the
+  (`path`, `score` 0..1, `heading_path`, `snippet`, `chunk_id`). Options: `--top-k` (default 5, range 1..100),
+  `--path-prefix <dir/>`, `--min-score` (0..1). Out of range is
+  `RETRIEVAL_004_INVALID_SEARCH_QUERY`. Fails with `RETRIEVAL_003_INDEX_PROFILE_MISMATCH` if the
   configured embedding model differs from the one the collection was built with.
 - `vectra collections list --json`: collections with model, dimension, source root and counts.
 - `vectra collections drop <name> --yes --json`: delete a collection and its index (without `--yes`
@@ -48,3 +61,6 @@ not covered here.
 `VECTRA_EMBEDDING_MODEL_ID` (default `BAAI/bge-small-en-v1.5`), `VECTRA_EMBEDDING_DIMENSION`
 (default 384), `VECTRA_SYNC_MAX_RETRIES` (default 2, at least 0) and `VECTRA_DATA_DIR`. The first
 embedding downloads the model. A collection keeps the model and dimension it was created with.
+Other whole-command failures: `RETRIEVAL_005_EMBEDDING_DIMENSION_MISMATCH` (dimension setting
+does not match the model), `RETRIEVAL_201_VECTOR_STORE_UNAVAILABLE`,
+`RETRIEVAL_202_EMBEDDER_UNAVAILABLE`.

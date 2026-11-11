@@ -1,7 +1,8 @@
 # Error codes and exit codes
 
-Exit codes (`exceptions/exit_code_enum.py`): `0` ok, `1` the operation failed, `2` invalid
-command line.
+Exit codes (`exceptions/exit_code_enum.py`): `0` ok, `1` the operation failed (including domain
+validation such as `RETRIEVAL_001` or `RETRIEVAL_004`), `2` command-line usage errors and
+`INTERFACE_*` errors only.
 
 Every deliberate error has a stable `code`, a `title`, a `message`, `metadata` and `next_steps`.
 With `--json` the envelope goes to stdout:
@@ -30,6 +31,7 @@ Branch on `code`, not on the message. Code groups: `CORE_` configuration,
 | `INTERFACE_001_SKILL_GUIDE_NOT_FOUND` | 2 | `skills get` named a guide this version does not ship. | `skills get` |
 | `INTERFACE_002_CONFIRMATION_REQUIRED` | 2 | `collections drop` without `--yes`. | `collections drop` |
 | `INTERFACE_003_NEW_ROOT_REQUIRES_REBUILD` | 2 | `--new-root` without `--rebuild`. | `sync` |
+| `INTERFACE_004_USAGE_ERROR` | 2 | Missing argument, unknown option or bad option value; `message` is Typer's. | any command |
 | `RETRIEVAL_001_INVALID_COLLECTION_NAME` | 1 | Name is not lowercase letters, digits, `-`, `_` (1 to 63 characters, first one a letter or digit). | `sync`, `search`, `collections drop` |
 | `RETRIEVAL_002_INVALID_SOURCE_PATH` | 1 | A document path is not relative, POSIX-style and free of `..`. | `sync` |
 | `RETRIEVAL_003_INDEX_PROFILE_MISMATCH` | 1 | Configured model or dimension differs from the collection's. Fix: restore the setting, or `sync --rebuild`. | `sync`, `search` |
@@ -53,7 +55,9 @@ with an exception that is not a vectra error (`sync_collection_handler.py`).
 `{path, code, message, attempts}`, and the command exits 1 when the list is not empty. A file
 with an unsupported extension has `attempts` 0 (it is never tried).
 
-## Not an envelope
+## Usage errors
 
-Mistakes Typer catches (missing argument, unknown option, bad option value) print Typer's usage
-text on stderr and exit 2, even with `--json`.
+Mistakes Typer catches (missing argument, unknown option, bad option value) are reported as
+`INTERFACE_004_USAGE_ERROR` in the envelope on stdout when `--json` is anywhere on the command
+line; `message` is Typer's own message. Without `--json` Typer's usage text goes to stderr. Both
+exit 2.
