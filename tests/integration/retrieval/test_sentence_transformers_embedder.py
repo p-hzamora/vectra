@@ -1,8 +1,10 @@
 """SentenceTransformersEmbedderAdapter with a stub SDK; the real model sits behind `-m model`."""
 
 import math
+import os
 import sys
 import types
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -14,6 +16,7 @@ from vectra.bounded_context.retrieval.infrastructure.outbound.embedding.sentence
     BGE_QUERY_PREFIX,
 )
 from vectra.exceptions import EmbeddingModelError
+from vectra.interfaces.cli import run
 
 
 class _StubModel:
@@ -77,3 +80,42 @@ async def test_real_bge_model_embeds_with_the_declared_dimension() -> None:
         return sum(x * y for x, y in zip(a, b, strict=True))
 
     assert dot(cat.values, dog.values) > dot(cat.values, tax.values)
+
+
+@pytest.mark.integration
+async def test_loading_sets_quiet_env_and_encodes_without_progress_bar(
+    stub_sdk: type[_StubModel], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    for name in (
+        "HF_HUB_DISABLE_PROGRESS_BARS",
+        "TRANSFORMERS_VERBOSITY",
+        "TOKENIZERS_PARALLELISM",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    options: dict[str, Any] = {}
+    original = _StubModel.encode
+
+    def spy(self: _StubModel, texts: list[str], **kwargs: Any) -> list[list[float]]:
+        options.update(kwargs)
+        return original(self, texts, **kwargs)
+
+    monkeypatch.setattr(_StubModel, "encode", spy)
+    await SentenceTransformersEmbedderAdapter("some/model", 2).embed_query("abc")
+    assert options["show_progress_bar"] is False
+    assert os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] == "1"
+    assert os.environ["TRANSFORMERS_VERBOSITY"] == "error"
+    assert os.environ["TOKENIZERS_PARALLELISM"] == "false"
+
+
+@pytest.mark.model
+def test_real_model_json_search_leaves_stderr_empty(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "cats.md").write_text("# Cats\nfelines purr", encoding="utf-8")
+    monkeypatch.setenv("VECTRA_SYNC_MAX_RETRIES", "0")
+    assert run(["sync", "notes", str(docs), "--json"]) == 0
+    capsys.readouterr()
+    assert run(["search", "notes", "cat", "--json"]) == 0
+    assert capsys.readouterr().err == ""

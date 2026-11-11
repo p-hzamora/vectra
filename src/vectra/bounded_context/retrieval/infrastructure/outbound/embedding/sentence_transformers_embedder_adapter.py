@@ -1,6 +1,9 @@
 """Embeddings from a local sentence-transformers model."""
 
 import asyncio
+import logging
+import os
+import warnings
 from collections.abc import Sequence
 from typing import Any
 
@@ -10,6 +13,36 @@ from vectra.exceptions import EmbeddingModelError
 
 BGE_QUERY_PREFIX: str = "Represent this sentence for searching relevant passages: "
 BATCH_SIZE: int = 32
+
+
+def _silence_model_sdks(model_id: str) -> None:
+    """Keep stderr empty (machine-readable output) and skip network checks for cached models."""
+    os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+    os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
+    os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+    for module in ("torch", "transformers", "sentence_transformers"):
+        for category in (UserWarning, FutureWarning):
+            warnings.filterwarnings("ignore", category=category, module=rf"{module}(\.|$)")
+    _mute_sdk_loggers()
+    from huggingface_hub import constants, try_to_load_from_cache
+
+    cached: object = try_to_load_from_cache(model_id, "config.json")
+    if isinstance(cached, str):
+        os.environ.setdefault("HF_HUB_OFFLINE", "1")
+        # huggingface_hub reads the variable at import time, and it is already imported here.
+        constants.HF_HUB_OFFLINE = os.environ["HF_HUB_OFFLINE"] == "1"
+
+
+def _mute_sdk_loggers() -> None:
+    # torch resets its own logger on import, so its import-time macOS NOTE needs the child logger.
+    for name in (
+        "torch",
+        "torch.distributed.elastic.multiprocessing.redirects",
+        "huggingface_hub",
+        "transformers",
+        "sentence_transformers",
+    ):
+        logging.getLogger(name).setLevel(logging.ERROR)
 
 
 class SentenceTransformersEmbedderAdapter(IEmbedder):
@@ -54,7 +87,10 @@ class SentenceTransformersEmbedderAdapter(IEmbedder):
 
     def _encode_blocking(self, texts: list[str]) -> Any:
         if self._model is None:
+            _silence_model_sdks(self._profile.model_id)
             from sentence_transformers import SentenceTransformer
+
+            _mute_sdk_loggers()
 
             self._model = SentenceTransformer(self._profile.model_id)
         return self._model.encode(
