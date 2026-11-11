@@ -16,6 +16,7 @@ from vectra.bounded_context.retrieval.application.ports.embedding import IEmbedd
 from vectra.bounded_context.retrieval.application.services import ChunkerResolver
 from vectra.bounded_context.retrieval.infrastructure.outbound.chunking import (
     MarkdownChunkerAdapter,
+    PythonChunkerAdapter,
 )
 from vectra.bounded_context.retrieval.infrastructure.outbound.embedding import (
     SentenceTransformersEmbedderAdapter,
@@ -70,7 +71,7 @@ def build_retrieval(
             uow_factory=partial(LanceDbRetrievalUnitOfWorkAdapter, store),
             manifest=LanceDbManifestReadRepositoryAdapter(store),
             source=FilesystemDocumentSourceAdapter(),
-            resolver=ChunkerResolver([MarkdownChunkerAdapter()]),
+            resolver=ChunkerResolver([MarkdownChunkerAdapter(), PythonChunkerAdapter()]),
             embedder=chosen,
             max_retries=environment.retrieval.sync_max_retries,
             backoff_seconds=backoff_seconds,
