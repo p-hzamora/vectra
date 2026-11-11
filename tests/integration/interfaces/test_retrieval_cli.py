@@ -167,6 +167,24 @@ def test_search_returns_ranked_documents(capsys: pytest.CaptureFixture[str], doc
     assert hits[0]["heading_path"] == ["Cats"]
 
 
+def test_sync_include_py_then_search_finds_a_function(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    code = tmp_path / "code"
+    code.mkdir()
+    (code / "pets.py").write_text(
+        "def feed_cat():\n    return 'felines purr'\n\n\ndef walk_dog():\n    return 'canines bark'\n",
+        encoding="utf-8",
+    )
+    assert run(["sync", "code", str(code), "--include", "**/*.py", "--json"]) == 0
+    assert _result(capsys)["added"] == ["pets.py"]
+    assert run(["search", "code", "def walk_dog canines bark", "--top-k", "1", "--json"]) == 0
+    hits = _result(capsys)["hits"]
+    assert isinstance(hits, list)
+    assert hits[0]["path"] == "pets.py"
+    assert hits[0]["heading_path"] == ["pets", "walk_dog"]
+
+
 def test_search_text_output_and_filters(capsys: pytest.CaptureFixture[str], docs: Path) -> None:
     run(["sync", "notes", str(docs), "--json"])
     capsys.readouterr()
