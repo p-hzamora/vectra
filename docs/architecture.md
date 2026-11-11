@@ -43,7 +43,7 @@ Contracts are import-linter rules in `pyproject.toml` (`make imports`):
 | Port | File (under `bounded_context/retrieval/`) | Adapter |
 |---|---|---|
 | `IDocumentSource` | `application/ports/source/i_document_source.py` | `FilesystemDocumentSourceAdapter` (`infrastructure/outbound/source/`) |
-| `IChunker` | `application/ports/chunking/i_chunker.py` | `MarkdownChunkerAdapter` (`.../chunking/`) |
+| `IChunker` | `application/ports/chunking/i_chunker.py` | `MarkdownChunkerAdapter`, `PythonChunkerAdapter` (`.../chunking/`) |
 | `IEmbedder` | `application/ports/embedding/i_embedder.py` | `SentenceTransformersEmbedderAdapter` (`.../embedding/`) |
 | `IRetrievalUnitOfWork` | `application/ports/uow/i_retrieval_unit_of_work.py` | `LanceDbRetrievalUnitOfWorkAdapter` (`.../vector_store/`) |
 | `ICollectionRepository` | `domain/repositories/i_collection_repository.py` | `LanceDbCollectionRepositoryAdapter` |
@@ -64,13 +64,21 @@ and schemas, and turns foreign failures into `VectorStoreError`.
   frontmatter becomes chunk metadata (malformed frontmatter is dropped with a warning); the
   body is split by headings (headings inside code fences are text); a section over 400 tokens
   (4 characters per token) is cut at paragraph boundaries, without overlap.
+- Python chunker (`chunker_version` `python-1`, extension `.py`): parses with stdlib `ast`; one
+  chunk per top-level function, class and method, with the heading path (module, class, method)
+  and the source text including decorators and docstring. A class chunk holds its header,
+  docstring and class-level statements; the module docstring, imports and top-level statements
+  form one `module` chunk. A unit over 400 tokens (4 characters per token) is cut at line
+  boundaries, without overlap. Source that does not parse (`SyntaxError`) does not fail: it is
+  split at blank lines under the same cap and a warning is returned.
 - Embedder: loads the model on the first call, encodes in a thread with normalized vectors.
   Models whose id contains `bge` get the prefix `Represent this sentence for searching relevant
   passages: ` on queries only.
 - Storage: a LanceDB database under `<VECTRA_DATA_DIR>/index` with tables `collections`,
   `manifest` and one `chunks_<collection>` table per collection.
 - A `ChunkerResolver` (`application/services/`) maps a file extension to a chunker; an unknown
-  extension is a `RETRIEVAL_204_CHUNKING_FAILED` for that file.
+  extension is a `RETRIEVAL_204_CHUNKING_FAILED` for that file. Both chunkers are wired in
+  `bootstrap.py`; `.py` files are only indexed when `--include` selects them.
 
 ## Chunk ids
 
@@ -93,7 +101,7 @@ no longer on disk), `unchanged`. `SyncCollectionHandler` then indexes each added
 document (chunk, embed, store) and removes each deleted one. Each document is its own unit of
 work, so one failing file does not stop the rest. The store has no cross-table transaction:
 the manifest entry is written last, so a crash leaves the document stale and the next sync
-repairs it. See [workflows/sync.md](workflows/sync.md).
+repairs it. See [commands/sync.md](commands/sync.md).
 
 ## Score semantics
 
@@ -116,4 +124,4 @@ the collection with the current profile.
 `interfaces/cli/output.py` prints either text or the envelope `{"ok": true, "result": ...}` /
 `{"ok": false, "error": {code, title, message, metadata, next_steps}}`. Deliberate errors are
 `AppException`s with a stable `__error_code__` and an exit code. The catalogue is in
-[workflows/errors.md](workflows/errors.md).
+[commands/errors.md](commands/errors.md).

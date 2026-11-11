@@ -15,7 +15,7 @@ not covered here.
   `CORE_001_INVALID_CONFIGURATION`) or `INTERFACE_` (command line: `INTERFACE_001`..`004`;
   `INTERFACE_004_USAGE_ERROR` is a missing argument, unknown option or bad value, and is an
   envelope when `--json` is present). `next_steps` says how to recover. Full list:
-  `docs/workflows/errors.md`.
+  `docs/commands/errors.md`.
 - `--env-file <path>` is global: it goes before the subcommand; `--json` goes after it.
 - Collection names: lowercase letters, digits, `-`, `_`; 1 to 63 characters; first one a letter or
   digit (otherwise `RETRIEVAL_001_INVALID_COLLECTION_NAME`).
@@ -26,7 +26,7 @@ not covered here.
 - `vectra sync <name> <root> --json`: index the changes of a folder into collection `<name>`
   (created on first use and bound to that root; another root fails with
   `RETRIEVAL_102_SOURCE_ROOT_INVALID`). Only `**/*.md` by default; repeat `--include` /
-  `--exclude` globs to change that. Hidden folders and symlinks are skipped. Re-running is safe:
+  `--exclude` globs to change that (`--include "**/*.py"` adds Python; it replaces the default). Hidden folders and symlinks are skipped. Re-running is safe:
   unchanged files are not touched. Options:
   - `--dry-run`: report what would be added/updated/deleted and write nothing.
   - `--rebuild`: drop the collection and recreate it with the current embedding model, then index
@@ -44,7 +44,7 @@ not covered here.
     `RETRIEVAL_204_CHUNKING_FAILED`, `RETRIEVAL_000_UNEXPECTED` (a non-vectra exception). A file
     with an unsupported extension is listed as `RETRIEVAL_204_CHUNKING_FAILED` with `attempts` 0.
     Files are also reindexed when the chunker version changes. `result.warnings` carries non-fatal notes such as ignored malformed
-    frontmatter.
+    frontmatter or a Python file that does not parse (split at blank lines instead).
 - `vectra search <name> "<query>" --json`: semantic search, one hit per document, best first
   (`path`, `score` 0..1, `heading_path`, `snippet`, `chunk_id`). Options: `--top-k` (default 5, range 1..100),
   `--path-prefix <dir/>`, `--min-score` (0..1). Out of range is
@@ -55,6 +55,28 @@ not covered here.
   it exits 2 and deletes nothing).
 - `vectra config show --json`: the configuration file read and the data folder.
 - `vectra skills list --json` / `vectra skills get <name> --json`: the guides this version ships.
+
+## Chunks and `heading_path`
+
+- Markdown (`.md`, `.markdown`): `heading_path` is the headings above the chunk.
+- Python (`.py`, only via `--include`): one chunk per function, class and method; `heading_path`
+  is `[module, Class, method]` or `[module, function]`; `[module]` is the module docstring,
+  imports and top-level statements.
+
+## What to index
+
+Index curated folders (conventions, templates, examples), never whole repos: every file is
+embedded and noise buries the useful hits. For the structure of a repo use graphify, not vectra.
+
+## Standard collections
+
+```bash
+vectra sync conventions <path-to-conventions> --json
+vectra sync tools <path-to-tools> --json
+vectra sync <project> <path-to-project-docs> --include "**/*.md" --include "**/*.py" --json
+```
+
+One collection per project, named after it. Add `--dry-run` first on a new folder.
 
 ## Settings
 

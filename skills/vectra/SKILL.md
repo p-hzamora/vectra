@@ -1,7 +1,7 @@
 ---
 name: vectra
-description: Index folders of Markdown files into a local vector store and search them semantically with the `vectra` CLI.
-when_to_use: Use when the user asks to index or sync a folder, search indexed notes or documents by meaning, list or drop collections, or check vectra's configuration.
+description: Index folders of Markdown files (and, with `--include`, Python files) into a local vector store and search them semantically with the `vectra` CLI.
+when_to_use: Use when the user asks to index or sync a folder of Markdown or Python files, search indexed notes, documents or code by meaning, list or drop collections, or check vectra's configuration.
 argument-hint: "[sync <name> <root> | search <name> <query> | collections list|drop | config show]"
 ---
 

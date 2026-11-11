@@ -8,7 +8,8 @@ processed.
 vectra sync notes ~/docs/notes --json
 ```
 
-Defaults: `--include "**/*.md"`. Hidden folders and symbolic links are skipped. A `.md` file at
+Defaults: `--include "**/*.md"`; Python files are indexed only when asked for, e.g.
+`--include "**/*.py"` (this replaces the default, so add `--include "**/*.md"` to keep both). Hidden folders and symbolic links are skipped. A `.md` file at
 the top of ROOT matches. Names: lowercase letters, digits, `-`, `_`; 1 to 63 characters, starting
 with a letter or digit.
 
@@ -86,7 +87,7 @@ collection demo
 
 ## Failure cases
 
-A file with an extension no chunker handles (only `.md` and `.markdown` are supported) is
+A file with an extension no chunker handles (only `.md`, `.markdown` and `.py` are supported) is
 reported per file, with `attempts` 0, and the exit code is 1:
 
 ```json

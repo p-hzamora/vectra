@@ -7,10 +7,10 @@ can print a JSON envelope (`--json`), so agents and scripts can use it as a retr
 
 - [architecture.md](architecture.md): layers, the `retrieval` context, ports and adapters,
   chunk ids, incremental sync, scores, import contracts.
-- [workflows/](workflows/README.md): one page per command group, with real output.
-  - [sync](workflows/sync.md), [search](workflows/search.md),
-    [collections](workflows/collections.md), [config and skills](workflows/config-and-skills.md)
-  - [errors](workflows/errors.md): every error code and exit code.
+- [commands/](commands/README.md): one page per command group, with real output.
+  - [sync](commands/sync.md), [search](commands/search.md),
+    [collections](commands/collections.md), [config and skills](commands/config-and-skills.md)
+  - [errors](commands/errors.md): every error code and exit code.
 
 The agent-facing command reference is `skill_guides/vectra.md` (served by
 `vectra skills get vectra`); the discovery stub is `skills/vectra/SKILL.md`. These docs do not
