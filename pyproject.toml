@@ -132,6 +132,15 @@ layers = [
 ]
 
 [[tool.importlinter.contracts]]
+name = "Configuration layers point inward"
+type = "layers"
+layers = [
+    "vectra.bounded_context.configuration.infrastructure",
+    "vectra.bounded_context.configuration.application",
+    "vectra.bounded_context.configuration.domain",
+]
+
+[[tool.importlinter.contracts]]
 name = "Retrieval domain and application know no SDK or delivery framework"
 type = "forbidden"
 source_modules = [
@@ -194,8 +203,11 @@ source_modules = ["vectra.interfaces"]
 forbidden_modules = [
     "vectra.bounded_context.retrieval.domain",
     "vectra.bounded_context.retrieval.infrastructure",
+    "vectra.bounded_context.configuration.domain",
+    "vectra.bounded_context.configuration.infrastructure",
 ]
 allow_indirect_imports = true
 ignore_imports = [
     "vectra.interfaces.cli.bootstrap -> vectra.bounded_context.retrieval.infrastructure.**",
+    "vectra.interfaces.cli.bootstrap -> vectra.bounded_context.configuration.infrastructure.**",
 ]
