@@ -33,6 +33,7 @@ app.add_typer(commands.config_app, name="config")
 app.add_typer(commands.collections_app, name="collections")
 app.command("sync")(commands.sync)
 app.command("search")(commands.search)
+app.command("update")(commands.update)
 
 
 def _print_version(enabled: bool) -> None:

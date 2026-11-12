@@ -20,6 +20,8 @@ from .sync_response import (
     SkippedCollectionResponse,
     SyncResponse,
 )
+from .update_apply_response import UpdateApplyResponse
+from .update_check_response import UpdateCheckResponse
 
 __all__ = [
     "RepairResponse",
@@ -41,4 +43,6 @@ __all__ = [
     "SkillGuideListResponse",
     "SkillGuideResponse",
     "SuccessResponse",
+    "UpdateApplyResponse",
+    "UpdateCheckResponse",
 ]

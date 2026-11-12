@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
 
+from vectra import __version__
 from vectra.bounded_context.configuration.application.handlers.commands import (
     InitEnvFileHandler,
 )
@@ -47,6 +48,20 @@ from vectra.bounded_context.retrieval.infrastructure.outbound.vector_store impor
     LanceDbRetrievalUnitOfWorkAdapter,
     LanceDbStore,
 )
+from vectra.bounded_context.updates.application.handlers.commands import ApplyUpdateHandler
+from vectra.bounded_context.updates.application.handlers.queries import CheckForUpdateHandler
+from vectra.bounded_context.updates.application.ports.installer import (
+    IInstallerRunner,
+    IInstallMethodDetector,
+)
+from vectra.bounded_context.updates.application.ports.release_source import IReleaseSource
+from vectra.bounded_context.updates.infrastructure.outbound.installer import (
+    ProcessInstallMethodDetectorAdapter,
+    SubprocessInstallerRunnerAdapter,
+)
+from vectra.bounded_context.updates.infrastructure.outbound.release_source import (
+    GithubReleaseSourceAdapter,
+)
 from vectra.core import Environment
 
 INDEX_FOLDER: str = "index"
@@ -71,9 +86,44 @@ class ConfigurationHandlers:
     init: InitEnvFileHandler
 
 
+@dataclass(frozen=True, slots=True, kw_only=True)
+class UpdatesHandlers:
+    """The wired handlers of the updates context."""
+
+    check: CheckForUpdateHandler
+    apply: ApplyUpdateHandler
+
+
 def build_configuration() -> ConfigurationHandlers:
     """Wire the configuration handlers over the local filesystem."""
     return ConfigurationHandlers(init=InitEnvFileHandler(writer=FilesystemEnvFileWriterAdapter()))
+
+
+def build_updates(
+    *,
+    release_source: IReleaseSource | None = None,
+    detector: IInstallMethodDetector | None = None,
+    runner: IInstallerRunner | None = None,
+) -> UpdatesHandlers:
+    """Wire the updates handlers over GitHub, the running interpreter and subprocesses.
+
+    Args:
+        release_source: Replacement release source (tests); defaults to GitHub.
+        detector: Replacement install-method detector (tests).
+        runner: Replacement installer runner (tests); the default really reinstalls vectra.
+    """
+    source: IReleaseSource = release_source or GithubReleaseSourceAdapter(
+        user_agent=f"vectra/{__version__}"
+    )
+    chosen_detector: IInstallMethodDetector = detector or ProcessInstallMethodDetectorAdapter()
+    return UpdatesHandlers(
+        check=CheckForUpdateHandler(release_source=source, detector=chosen_detector),
+        apply=ApplyUpdateHandler(
+            release_source=source,
+            detector=chosen_detector,
+            runner=runner or SubprocessInstallerRunnerAdapter(),
+        ),
+    )
 
 
 def build_embedder(environment: Environment) -> IEmbedder:
