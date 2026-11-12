@@ -23,9 +23,10 @@ not covered here.
 
 ## Commands
 
-- `vectra sync <name> <root> --json`: index the changes of a folder into collection `<name>`
+- `vectra sync <name> [<root>] --json`: index the changes of a folder into collection `<name>`
   (created on first use and bound to that root; another root fails with
-  `RETRIEVAL_102_SOURCE_ROOT_INVALID`). Only `**/*.md` by default; repeat `--include` /
+  `RETRIEVAL_102_SOURCE_ROOT_INVALID`). `<root>` may be omitted for an existing collection: it
+  defaults to the collection's own root. Only `**/*.md` by default; repeat `--include` /
   `--exclude` globs to change that (`--include "**/*.py"` adds Python; it replaces the default). Hidden folders and symlinks are skipped. Re-running is safe:
   unchanged files are not touched. Options:
   - `--dry-run`: report what would be added/updated/deleted and write nothing.
@@ -35,6 +36,7 @@ not covered here.
     With `--dry-run` nothing is dropped.
   - `--new-root`: with `--rebuild`, rebind the collection to this root. Without `--rebuild` it exits
     2 (`INTERFACE_003_NEW_ROOT_REQUIRES_REBUILD`).
+  - `--verbose` / `-v`: progress on stderr; stdout stays parseable with `--json`.
   - `--allow-mass-delete`: needed when more than half of the indexed documents disappeared
     (`RETRIEVAL_103_MASS_DELETE_REFUSED` otherwise; check the root first). With `--dry-run` it is
     not refused: the plan is returned with a `result.warnings` entry saying the real sync would be.
@@ -51,6 +53,16 @@ not covered here.
   `RETRIEVAL_004_INVALID_SEARCH_QUERY`. Fails with `RETRIEVAL_003_INDEX_PROFILE_MISMATCH` if the
   configured embedding model differs from the one the collection was built with.
 - `vectra collections list --json`: collections with model, dimension, source root and counts.
+- `vectra collections check [<name>] --json`: read-only; compare each collection's model and
+  dimension with the configured ones (`in_sync`, `configured_model_id`, `configured_dimension`).
+  Loads no model. Exit 1 when any collection is out of sync. Run it after changing
+  `VECTRA_EMBEDDING_MODEL_ID` or `VECTRA_EMBEDDING_DIMENSION`, and before searching if unsure.
+  - `--fix --yes`: drop and re-embed every out-of-sync collection (or only `<name>`) from its
+    stored root with the default include globs. In-sync collections are untouched. A collection
+    whose root no longer exists is listed under `skipped` and left as it was (exit 1). Without
+    `--yes` it exits 2 (`INTERFACE_002_CONFIRMATION_REQUIRED`). Custom `--include` globs are not
+    kept: for those, use `sync <name> --rebuild --include ...` per collection.
+  - `--verbose` / `-v`: progress on stderr.
 - `vectra collections drop <name> --yes --json`: delete a collection and its index (without `--yes`
   it exits 2 and deletes nothing).
 - `vectra config show --json`: the configuration file read and the data folder.
@@ -79,6 +91,16 @@ vectra sync <project> <path-to-project-docs> --include "**/*.md" --include "**/*
 ```
 
 One collection per project, named after it. Add `--dry-run` first on a new folder.
+
+## Changing the embedding model
+
+1. Set the new `VECTRA_EMBEDDING_MODEL_ID` and `VECTRA_EMBEDDING_DIMENSION` together.
+2. `vectra collections check --json` to see which collections are out of sync.
+3. One collection: `vectra sync <name> --rebuild --json` (add `--dry-run` first). All of them:
+   `vectra collections check --fix --yes --json`.
+
+`--rebuild`, `--fix` and `drop` delete the existing index and re-embed everything, which can be
+slow. Source files are never touched. Ask the user before running any of them.
 
 ## Settings
 
