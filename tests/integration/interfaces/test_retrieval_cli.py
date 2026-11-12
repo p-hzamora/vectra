@@ -168,6 +168,26 @@ def test_search_returns_ranked_documents(capsys: pytest.CaptureFixture[str], doc
     assert hits[0]["heading_path"] == ["Cats"]
 
 
+def test_search_hit_json_shape_is_stable(capsys: pytest.CaptureFixture[str], docs: Path) -> None:
+    """The contract noesis' vector adapter relies on."""
+    run(["sync", "notes", str(docs), "--json"])
+    capsys.readouterr()
+    assert run(["search", "notes", "felines purr", "--top-k", "2", "--json"]) == 0
+    envelope = _envelope(capsys)
+    assert envelope["ok"] is True
+    result = envelope["result"]
+    assert isinstance(result, dict)
+    assert set(result) == {"collection", "query", "hits"}
+    hits = result["hits"]
+    assert isinstance(hits, list)
+    assert [hit["rank"] for hit in hits] == [1, 2]
+    for hit in hits:
+        assert set(hit) == {"rank", "path", "score", "heading_path", "snippet", "chunk_id"}
+        assert isinstance(hit["score"], float)
+        assert 0.0 <= hit["score"] <= 1.0
+    assert hits[0]["score"] >= hits[1]["score"]
+
+
 def test_sync_include_py_then_search_finds_a_function(
     capsys: pytest.CaptureFixture[str], tmp_path: Path
 ) -> None:
@@ -389,3 +409,52 @@ def test_verbose_reports_progress_on_stderr_and_keeps_stdout_clean(
     assert "[2/2] added" in captured.err
     assert run(["sync", "notes", str(docs), "--json"]) == 0
     assert capsys.readouterr().err == ""
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["search", "notes", "", "--json"],
+        ["search", "notes", "   ", "--json"],
+        ["search", "notes", "x", "--top-k", "0", "--json"],
+        ["search", "notes", "x", "--top-k", "101", "--json"],
+        ["search", "notes", "x", "--min-score", "2", "--json"],
+        ["search", "notes", "x", "--path-prefix", "../etc", "--json"],
+    ],
+)
+def test_invalid_search_input_is_clean_json_with_next_steps(
+    capsys: pytest.CaptureFixture[str], docs: Path, argv: list[str]
+) -> None:
+    run(["sync", "notes", str(docs), "--json"])
+    capsys.readouterr()
+    assert run(argv) == 1
+    error = _error(capsys)
+    assert error["code"] == "RETRIEVAL_004_INVALID_SEARCH_QUERY"
+    assert error["next_steps"]
+
+
+def test_search_of_a_missing_collection_is_clean_json_with_next_steps(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert run(["search", "missing", "x", "--json"]) == 1
+    error = _error(capsys)
+    assert error["code"] == "RETRIEVAL_101_COLLECTION_NOT_FOUND"
+    assert error["next_steps"]
+
+
+def test_an_unexpected_failure_is_clean_json_not_a_traceback(
+    capsys: pytest.CaptureFixture[str], docs: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def explode(*_: object, **__: object) -> None:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(bootstrap, "build_retrieval", explode)
+    assert run(["search", "notes", "x", "--json"]) == 1
+    captured = capsys.readouterr()
+    error = json.loads(captured.out)["error"]
+    assert error["code"] == "APP_000_UNEXPECTED"
+    assert "boom" in error["message"]
+    assert error["next_steps"]
+    assert "Traceback" not in captured.out + captured.err
+    assert run(["search", "notes", "x"]) == 1
+    assert "Traceback" not in capsys.readouterr().err

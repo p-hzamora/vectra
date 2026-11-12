@@ -29,7 +29,10 @@ class SearchQuery(FrozenObject):
     @classmethod
     def _text(cls, value: str) -> str:
         if not value.strip():
-            raise InvalidSearchQueryError("The search text cannot be empty.")
+            raise InvalidSearchQueryError(
+                "The search text cannot be empty.",
+                next_steps=["Pass the text to look for as the QUERY argument."],
+            )
         return value
 
     @field_validator("top_k")
@@ -37,7 +40,9 @@ class SearchQuery(FrozenObject):
     def _top_k(cls, value: int) -> int:
         if not 1 <= value <= MAX_TOP_K:
             raise InvalidSearchQueryError(
-                f"top_k must be between 1 and {MAX_TOP_K}.", {"top_k": value}
+                f"top_k must be between 1 and {MAX_TOP_K}.",
+                {"top_k": value},
+                next_steps=[f"Pass --top-k between 1 and {MAX_TOP_K}."],
             )
         return value
 
@@ -48,7 +53,9 @@ class SearchQuery(FrozenObject):
             return None
         if value.startswith("/") or ".." in PurePosixPath(value).parts:
             raise InvalidSearchQueryError(
-                "The path prefix must be relative without '..'.", {"path_prefix": value}
+                "The path prefix must be relative without '..'.",
+                {"path_prefix": value},
+                next_steps=["Pass --path-prefix as a relative folder such as `notes/2026`."],
             )
         return value
 
@@ -57,6 +64,8 @@ class SearchQuery(FrozenObject):
     def _min_score(cls, value: float | None) -> float | None:
         if value is not None and not 0.0 <= value <= 1.0:
             raise InvalidSearchQueryError(
-                "min_score must be between 0 and 1.", {"min_score": value}
+                "min_score must be between 0 and 1.",
+                {"min_score": value},
+                next_steps=["Pass --min-score between 0 and 1, or omit it."],
             )
         return value

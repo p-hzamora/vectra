@@ -26,6 +26,7 @@ vectra search demo "how do I make coffee" --top-k 2 --json
     "query": "how do I make coffee",
     "hits": [
       {
+        "rank": 1,
         "path": "espresso.md",
         "score": 0.6696174740791321,
         "heading_path": ["Espresso"],
@@ -33,6 +34,7 @@ vectra search demo "how do I make coffee" --top-k 2 --json
         "chunk_id": "7ced23f735e1609c33c7000530e12e89ba1b10ba0a601beb3360a8d6350de91c"
       },
       {
+        "rank": 2,
         "path": "cats.md",
         "score": 0.4171818494796753,
         "heading_path": ["Cats", "Care"],
@@ -44,6 +46,7 @@ vectra search demo "how do I make coffee" --top-k 2 --json
 }
 ```
 
+- `rank` is the 1-based position in `hits` (1 = best); `chunk_id` identifies the best chunk of the document.
 - `score` is `1 - cosine distance`, clamped to 0..1, higher is better. It is only comparable
   within one collection and model.
 - `snippet` is the chunk text cut to 300 characters (with `...` when cut).

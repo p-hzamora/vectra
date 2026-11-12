@@ -44,7 +44,9 @@ make check         # lint, format, mypy --strict, import contracts, tests with c
 Record every user-visible change under `Unreleased` in [CHANGELOG.md](CHANGELOG.md); the file
 explains how to cut a release.
 
-Every command accepts `--json` and `--help`. `--json` goes after the subcommand; `--env-file`
+Every command accepts `--json` and `--help`; command groups (`config`, `collections`, `skills`)
+take `--json` on their subcommands (`vectra collections list --json`), not on the group. `--json`
+goes after the subcommand; `--env-file`
 is a global flag and goes before it (`vectra --env-file x.env search demo "q" --json`).
 Exit codes: 0 ok, 1 the operation failed (including domain validation), 2 command-line usage
 errors and `INTERFACE_*` errors.

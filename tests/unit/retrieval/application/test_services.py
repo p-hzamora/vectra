@@ -65,6 +65,7 @@ def test_grouper_keeps_best_chunk_per_document_and_orders_by_score() -> None:
     ]
     grouped = DocumentHitGrouper().group(hits, top_k=2)
     assert [(item.path, item.chunk_id) for item in grouped] == [("b.md", "b1"), ("a.md", "a2")]
+    assert [item.rank for item in grouped] == [1, 2]
 
 
 def test_grouper_truncates_long_snippets_only() -> None:

@@ -9,6 +9,7 @@ class SearchHitResponse(FrozenObject):
     """The best chunk of one document.
 
     Attributes:
+        rank: Position in the result list, 1 for the best document.
         path: Document path.
         score: 0..1, higher is better.
         heading_path: Headings above the chunk.
@@ -16,6 +17,7 @@ class SearchHitResponse(FrozenObject):
         chunk_id: Chunk id.
     """
 
+    rank: int
     path: str
     score: float
     heading_path: tuple[str, ...]

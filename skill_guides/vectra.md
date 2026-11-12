@@ -48,7 +48,7 @@ not covered here.
     Files are also reindexed when the chunker version changes. `result.warnings` carries non-fatal notes such as ignored malformed
     frontmatter or a Python file that does not parse (split at blank lines instead).
 - `vectra search <name> "<query>" --json`: semantic search, one hit per document, best first
-  (`path`, `score` 0..1, `heading_path`, `snippet`, `chunk_id`). Options: `--top-k` (default 5, range 1..100),
+  (`rank` from 1, `path`, `score` 0..1, `heading_path`, `snippet`, `chunk_id`). Options: `--top-k` (default 5, range 1..100),
   `--path-prefix <dir/>`, `--min-score` (0..1). Out of range is
   `RETRIEVAL_004_INVALID_SEARCH_QUERY`. Fails with `RETRIEVAL_003_INDEX_PROFILE_MISMATCH` if the
   configured embedding model differs from the one the collection was built with.

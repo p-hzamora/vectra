@@ -94,8 +94,9 @@ def test_search_query_defaults_and_limits() -> None:
     ],
 )
 def test_search_query_rejects_bad_input(kwargs: dict[str, object]) -> None:
-    with pytest.raises(InvalidSearchQueryError):
+    with pytest.raises(InvalidSearchQueryError) as raised:
         SearchQuery.model_validate(kwargs)
+    assert raised.value.next_steps
 
 
 def test_search_query_accepts_prefix_and_min_score() -> None:
@@ -125,3 +126,9 @@ def test_profile_rejects_unexpected_vectors(vectors: list[Embedding]) -> None:
     with pytest.raises(EmbeddingDimensionMismatchError) as raised:
         profile.assert_embeddings(vectors, 2, "a.md")
     assert raised.value.metadata == {"path": "a.md"}
+
+
+def test_empty_model_id_error_tells_how_to_fix_it() -> None:
+    with pytest.raises(InvalidRetrievalValueError) as raised:
+        EmbeddingProfile(model_id=" ", dimension=4)
+    assert raised.value.next_steps

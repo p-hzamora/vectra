@@ -29,7 +29,13 @@ class EmbeddingProfile(FrozenObject):
     @classmethod
     def _model(cls, value: str) -> str:
         if not value.strip():
-            raise InvalidRetrievalValueError("An embedding profile needs a model id.")
+            raise InvalidRetrievalValueError(
+                "An embedding profile needs a model id.",
+                next_steps=[
+                    "Set VECTRA_EMBEDDING_MODEL_ID in the .env file, "
+                    "or remove the variable to use the default."
+                ],
+            )
         return value
 
     @field_validator("dimension")

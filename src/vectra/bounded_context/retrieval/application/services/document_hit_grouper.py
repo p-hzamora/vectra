@@ -21,13 +21,14 @@ class DocumentHitGrouper:
         ranked: list[ChunkHitDTO] = sorted(best.values(), key=lambda hit: (-hit.score, hit.path))
         return tuple(
             DocumentHitDTO(
+                rank=rank,
                 path=hit.path,
                 score=hit.score,
                 heading_path=hit.heading_path,
                 snippet=_snippet(hit.text),
                 chunk_id=hit.chunk_id,
             )
-            for hit in ranked[:top_k]
+            for rank, hit in enumerate(ranked[:top_k], start=1)
         )
 
 
