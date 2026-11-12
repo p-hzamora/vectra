@@ -11,6 +11,18 @@ commit, and tag `vX.Y.Z`.
 
 ## [Unreleased]
 
+### Added
+
+- Search hits carry a 1-based `rank`.
+
+### Fixed
+
+- Domain validation errors (empty query, bad `--top-k`, `--min-score`, `--path-prefix`, empty
+  embedding model id) include `next_steps`.
+- Unexpected failures print a JSON error (`APP_000_UNEXPECTED`) instead of a traceback.
+- The help and README say `--json` goes on the subcommands of command groups, and the usage
+  error for `vectra collections --json` names a subcommand.
+
 ## [0.4.4] - 2026-11-12
 
 ### Added
