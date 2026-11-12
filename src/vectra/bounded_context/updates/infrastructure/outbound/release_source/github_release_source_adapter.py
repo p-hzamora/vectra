@@ -22,7 +22,7 @@ class GithubReleaseSourceAdapter(IReleaseSource):
 
     Args:
         user_agent: Value of the `User-Agent` header (GitHub requires one).
-        url: Endpoint; only `http(s)` is allowed. Overridden by tests to a local server.
+        url: Endpoint; only `https` is allowed.
         timeout: Seconds to wait for the connection and each read.
         opener: Replacement URL opener (tests); defaults to the standard one.
     """
@@ -41,8 +41,8 @@ class GithubReleaseSourceAdapter(IReleaseSource):
         self._opener: request.OpenerDirector = opener or request.build_opener()
 
     def latest_release(self) -> ReleaseInfoDTO | None:
-        if not self._url.startswith(("https://", "http://")):
-            raise self._unavailable(f"Refusing to read a non-HTTP URL: {self._url}")
+        if not self._url.startswith("https://"):
+            raise self._unavailable(f"Refusing to read a non-HTTPS URL: {self._url}")
         call = request.Request(  # noqa: S310 - scheme checked above
             self._url,
             headers={"User-Agent": self._user_agent, "Accept": "application/vnd.github+json"},

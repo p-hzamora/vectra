@@ -1,83 +1,82 @@
-"""The GitHub adapter against a local HTTP server: no request leaves the machine."""
+"""The GitHub adapter against a scripted opener: no request leaves the machine."""
 
+import io
 import json
-import threading
-import time
-from collections.abc import Iterator
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from email.message import Message
+from urllib import error, request
 
 import pytest
 
 from vectra.bounded_context.updates.infrastructure.outbound.release_source import (
     GithubReleaseSourceAdapter,
 )
+from vectra.bounded_context.updates.infrastructure.outbound.release_source.github_release_source_adapter import (
+    LATEST_RELEASE_URL,
+    TIMEOUT_SECONDS,
+)
 from vectra.exceptions import ReleaseSourceUnavailableError
 
 pytestmark = pytest.mark.integration
 
-
-class Scripted(BaseHTTPRequestHandler):
-    status: int = 200
-    body: bytes = b"{}"
-    delay: float = 0.0
-    seen_user_agents: list[str] = []  # noqa: RUF012 - shared with the test on purpose
-
-    def do_GET(self) -> None:
-        type(self).seen_user_agents.append(self.headers.get("User-Agent", ""))
-        time.sleep(type(self).delay)
-        try:
-            self.send_response(type(self).status)
-            self.send_header("Content-Length", str(len(type(self).body)))
-            self.end_headers()
-            self.wfile.write(type(self).body)
-        except OSError:  # the client gave up (timeout test)
-            pass
-
-    def log_message(self, format: str, *args: object) -> None:
-        pass
+URL: str = "https://example.test/releases/latest"
 
 
-@pytest.fixture
-def server() -> Iterator[tuple[type[Scripted], str]]:
-    class Handler(Scripted):
-        seen_user_agents = []  # noqa: RUF012
+class ScriptedOpener(request.OpenerDirector):
+    """Answers every request with the scripted status and body, or raises the scripted failure."""
 
-    httpd = HTTPServer(("127.0.0.1", 0), Handler)
-    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
-    thread.start()
-    try:
-        yield Handler, f"http://127.0.0.1:{httpd.server_port}/releases/latest"
-    finally:
-        httpd.shutdown()
-        httpd.server_close()
-        thread.join(timeout=5)
+    def __init__(self, *, status: int = 200, body: bytes = b"{}", raises: Exception | None = None):
+        super().__init__()
+        self.status: int = status
+        self.body: bytes = body
+        self.raises: Exception | None = raises
+        self.calls: list[request.Request] = []
+        self.timeouts: list[float | None] = []
+
+    def open(  # type: ignore[override]
+        self, fullurl: request.Request, data: None = None, timeout: float | None = None
+    ) -> io.BytesIO:
+        self.calls.append(fullurl)
+        self.timeouts.append(timeout)
+        if self.raises is not None:
+            raise self.raises
+        if self.status >= 400:
+            raise error.HTTPError(
+                fullurl.full_url, self.status, "scripted", Message(), io.BytesIO(self.body)
+            )
+        return io.BytesIO(self.body)
 
 
-def adapter(url: str, timeout: float = 5.0) -> GithubReleaseSourceAdapter:
-    return GithubReleaseSourceAdapter(user_agent="vectra/9.9.9", url=url, timeout=timeout)
+def adapter(opener: ScriptedOpener, url: str = URL) -> GithubReleaseSourceAdapter:
+    return GithubReleaseSourceAdapter(user_agent="vectra/9.9.9", url=url, opener=opener)
 
 
-def test_reads_the_latest_release(server: tuple[type[Scripted], str]) -> None:
-    handler, url = server
-    handler.body = json.dumps({"tag_name": "v1.2.3", "prerelease": False, "draft": False}).encode()
-    release = adapter(url).latest_release()
+def test_reads_the_latest_release() -> None:
+    opener = ScriptedOpener(
+        body=json.dumps({"tag_name": "v1.2.3", "prerelease": False, "draft": False}).encode()
+    )
+    release = adapter(opener).latest_release()
     assert release is not None
     assert (release.tag_name, release.prerelease, release.draft) == ("v1.2.3", False, False)
-    assert handler.seen_user_agents == ["vectra/9.9.9"]
+    assert opener.calls[0].full_url == URL
+    assert opener.calls[0].get_header("User-agent") == "vectra/9.9.9"
+    assert opener.timeouts == [TIMEOUT_SECONDS]
 
 
-def test_missing_flags_default_to_false(server: tuple[type[Scripted], str]) -> None:
-    handler, url = server
-    handler.body = b'{"tag_name": "v1.2.3"}'
-    release = adapter(url).latest_release()
+def test_the_default_endpoint_is_https() -> None:
+    opener = ScriptedOpener(body=b'{"tag_name": "v1.2.3"}')
+    GithubReleaseSourceAdapter(user_agent="vectra/9.9.9", opener=opener).latest_release()
+    assert LATEST_RELEASE_URL.startswith("https://")
+    assert opener.calls[0].full_url == LATEST_RELEASE_URL
+
+
+def test_missing_flags_default_to_false() -> None:
+    release = adapter(ScriptedOpener(body=b'{"tag_name": "v1.2.3"}')).latest_release()
     assert release is not None
     assert (release.prerelease, release.draft) == (False, False)
 
 
-def test_404_means_no_release(server: tuple[type[Scripted], str]) -> None:
-    handler, url = server
-    handler.status = 404
-    assert adapter(url).latest_release() is None
+def test_404_means_no_release() -> None:
+    assert adapter(ScriptedOpener(status=404)).latest_release() is None
 
 
 @pytest.mark.parametrize(
@@ -92,29 +91,27 @@ def test_404_means_no_release(server: tuple[type[Scripted], str]) -> None:
         (200, b'{"tag_name": "v1.0.0", "draft": "yes"}'),
     ],
 )
-def test_failures_are_unavailable(
-    server: tuple[type[Scripted], str], status: int, body: bytes
-) -> None:
-    handler, url = server
-    handler.status, handler.body = status, body
+def test_failures_are_unavailable(status: int, body: bytes) -> None:
     with pytest.raises(ReleaseSourceUnavailableError) as raised:
-        adapter(url).latest_release()
+        adapter(ScriptedOpener(status=status, body=body)).latest_release()
     assert raised.value.error_code == "UPDATES_201_RELEASE_SOURCE_UNAVAILABLE"
     assert raised.value.next_steps
 
 
-def test_a_slow_server_times_out(server: tuple[type[Scripted], str]) -> None:
-    handler, url = server
-    handler.delay = 1.0
+@pytest.mark.parametrize(
+    "failure",
+    [TimeoutError("timed out"), error.URLError("no route to host")],
+)
+def test_a_network_failure_is_unavailable(failure: Exception) -> None:
     with pytest.raises(ReleaseSourceUnavailableError):
-        adapter(url, timeout=0.2).latest_release()
+        adapter(ScriptedOpener(raises=failure)).latest_release()
 
 
-def test_an_unreachable_host_is_unavailable() -> None:
+@pytest.mark.parametrize(
+    "url", ["http://example.test/releases/latest", "file:///etc/passwd", "ftp://example.test/x"]
+)
+def test_only_https_is_requested(url: str) -> None:
+    opener = ScriptedOpener()
     with pytest.raises(ReleaseSourceUnavailableError):
-        adapter("http://127.0.0.1:1/releases/latest", timeout=1.0).latest_release()
-
-
-def test_only_http_schemes_are_requested() -> None:
-    with pytest.raises(ReleaseSourceUnavailableError):
-        adapter("file:///etc/passwd").latest_release()
+        adapter(opener, url).latest_release()
+    assert opener.calls == []
