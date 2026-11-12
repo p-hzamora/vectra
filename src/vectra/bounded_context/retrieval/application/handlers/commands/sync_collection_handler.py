@@ -105,13 +105,17 @@ class SyncCollectionHandler(IHandler[SyncCollectionCommand, SyncResultDTO]):
         """
         name = CollectionName(value=action.collection)
         collection: Collection | None = await self._provisioner.get(name)
-        if action.root is None and collection is None:
+        root: SourceRoot
+        if action.root is not None:
+            root = SourceRoot(value=action.root)
+        elif collection is not None:
+            root = collection.source_root
+        else:
             raise SourceRootInvalidError(
                 f"Collection {name} does not exist, so it has no root to sync.",
                 {"collection": name.value},
                 next_steps=[f"Run `vectra sync {name.value} ROOT` to create it."],
             )
-        root = SourceRoot(value=action.root) if action.root is not None else collection.source_root
         self._progress.report(f"{name.value}: scanning {root.value}")
         files: list[SourceFileDTO] = [
             file async for file in self._source.scan(root.value, action.include, action.exclude)
@@ -174,7 +178,7 @@ class SyncCollectionHandler(IHandler[SyncCollectionCommand, SyncResultDTO]):
         deleted: list[str] = []
         warnings: list[str] = []
         chunks_written: int = 0
-        to_index: list[SourcePath] = plan.add + plan.update
+        to_index: tuple[SourcePath, ...] = plan.add + plan.update
         if to_index:
             self._progress.report(
                 f"{name.value}: embedding with {self._embedder.profile.fingerprint} "
