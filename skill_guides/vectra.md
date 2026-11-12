@@ -11,7 +11,7 @@ not covered here.
 - Exit codes: 0 ok; 1 the operation failed, including domain validation
   (`RETRIEVAL_001_INVALID_COLLECTION_NAME`, `RETRIEVAL_004_INVALID_SEARCH_QUERY` for a bad
   `--top-k` / `--min-score`); 2 only for command-line usage errors and `INTERFACE_*` errors.
-- Error codes start with `RETRIEVAL_` (indexing and search), `CORE_` (configuration, e.g.
+- Error codes start with `RETRIEVAL_` (indexing and search), `UPDATES_` (`vectra update`), `CORE_` (configuration, e.g.
   `CORE_001_INVALID_CONFIGURATION`) or `INTERFACE_` (command line: `INTERFACE_001`..`004`;
   `INTERFACE_004_USAGE_ERROR` is a missing argument, unknown option or bad value, and is an
   envelope when `--json` is present). `next_steps` says how to recover. Full list:
@@ -68,6 +68,15 @@ not covered here.
 - `vectra config show --json`: the configuration file read and the data folder.
 - `vectra config init --json`: write a commented env file template; fails with
   `CONFIGURATION_101_ENV_FILE_EXISTS` if one exists (`--force` overwrites; only when the user asks).
+- `vectra update --json` (same as `--check`): ask GitHub whether a newer release exists:
+  `current`, `latest`, `update_available` (`null` on a dev build, `false` when no release exists),
+  `upgrade_command`. This is the only command that uses the network by itself; it never runs
+  on other commands. `UPDATES_201_RELEASE_SOURCE_UNAVAILABLE` (exit 1) when GitHub cannot be read.
+  - `--apply --yes`: reinstall at the latest release with the installer that owns the install.
+    **Ask the user before running `--apply`**: it replaces the installed vectra. Without `--yes`
+    it exits 2 (`INTERFACE_002_CONFIRMATION_REQUIRED`). If the installer cannot be detected it
+    refuses with `UPDATES_101_INSTALLER_NOT_DETECTED` and the manual command in `next_steps`.
+    Config and indexes are never touched. After it succeeds, run `vectra collections check --json`.
 - `vectra skills list --json` / `vectra skills get <name> --json`: the guides this version ships.
 
 ## Chunks and `heading_path`

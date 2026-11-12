@@ -3,7 +3,7 @@
 Chunk files, embed them into a vector store, and serve semantic search to agents and tools
 (for example noesis) through one CLI.
 
-Status: working CLI. `sync`, `search`, `collections`, `config` and `skills` are implemented
+Status: working CLI. `sync`, `search`, `collections`, `config`, `skills` and `update` are implemented
 (Markdown chunking, local embeddings, LanceDB storage).
 
 ## Install
@@ -11,6 +11,7 @@ Status: working CLI. `sync`, `search`, `collections`, `config` and `skills` are 
 ```bash
 curl -LsSf https://raw.githubusercontent.com/p-hzamora/vectra/main/install.sh | sh
 vectra config show                          # the env file read and the data folder
+vectra update                               # is there a newer release? ([docs](docs/commands/update.md))
 ```
 
 The installer uses `uv` if you have it, otherwise `pipx`, otherwise a private virtual

@@ -24,4 +24,5 @@ Index:
 2. [`search NAME QUERY`](search.md)
 3. [`collections list | drop`](collections.md)
 4. [`config show`, `skills list | get`, settings](config-and-skills.md)
-5. [Error codes and exit codes](errors.md)
+5. [`update`](update.md)
+6. [Error codes and exit codes](errors.md)

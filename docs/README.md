@@ -10,7 +10,8 @@ can print a JSON envelope (`--json`), so agents and scripts can use it as a retr
   chunk ids, incremental sync, scores, import contracts.
 - [commands/](commands/README.md): one page per command group, with real output.
   - [sync](commands/sync.md), [search](commands/search.md),
-    [collections](commands/collections.md), [config and skills](commands/config-and-skills.md)
+    [collections](commands/collections.md), [config and skills](commands/config-and-skills.md),
+    [update](commands/update.md)
   - [errors](commands/errors.md): every error code and exit code.
 
 The agent-facing command reference is `skill_guides/vectra.md` (served by

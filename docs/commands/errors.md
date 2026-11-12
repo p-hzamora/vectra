@@ -29,8 +29,13 @@ Branch on `code`, not on the message. Code groups: `CORE_` configuration,
 |---|---|---|---|
 | `CORE_001_INVALID_CONFIGURATION` | 1 | A setting in the env file or environment is invalid; `metadata.problems` lists them. | Any command that loads settings |
 | `CONFIGURATION_101_ENV_FILE_EXISTS` | 1 | `config init` found a file at the target; pass `--force` to overwrite. | `config init` |
+| `UPDATES_001_INVALID_VERSION` | 1 | A version or release tag is not strict `X.Y.Z` / `vX.Y.Z`; `update --apply` on a dev build. | `update --apply` |
+| `UPDATES_101_INSTALLER_NOT_DETECTED` | 1 | vectra cannot tell how it was installed (editable, Windows, ambiguous); `next_steps` has the manual command. | `update --apply` |
+| `UPDATES_102_NO_RELEASE_PUBLISHED` | 1 | No usable release (`vX.Y.Z`, not draft or pre-release) exists yet. | `update --apply` |
+| `UPDATES_201_RELEASE_SOURCE_UNAVAILABLE` | 1 | GitHub could not be read: network, timeout, HTTP error or bad JSON. | `update` |
+| `UPDATES_202_UPGRADE_FAILED` | 1 | The installer failed or could not start; `metadata.stderr_tail` has its last lines. | `update --apply --yes` |
 | `INTERFACE_001_SKILL_GUIDE_NOT_FOUND` | 2 | `skills get` named a guide this version does not ship. | `skills get` |
-| `INTERFACE_002_CONFIRMATION_REQUIRED` | 2 | `collections drop` without `--yes`. | `collections drop` |
+| `INTERFACE_002_CONFIRMATION_REQUIRED` | 2 | `collections drop` without `--yes`. | `collections drop`, `update --apply` |
 | `INTERFACE_003_NEW_ROOT_REQUIRES_REBUILD` | 2 | `--new-root` without `--rebuild`. | `sync` |
 | `INTERFACE_004_USAGE_ERROR` | 2 | Missing argument, unknown option or bad option value; `message` is Typer's. | any command |
 | `RETRIEVAL_001_INVALID_COLLECTION_NAME` | 1 | Name is not lowercase letters, digits, `-`, `_` (1 to 63 characters, first one a letter or digit). | `sync`, `search`, `collections drop` |
