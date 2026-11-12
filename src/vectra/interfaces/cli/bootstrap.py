@@ -4,6 +4,12 @@ from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
 
+from vectra.bounded_context.configuration.application.handlers.commands import (
+    InitEnvFileHandler,
+)
+from vectra.bounded_context.configuration.infrastructure.outbound.env_file import (
+    FilesystemEnvFileWriterAdapter,
+)
 from vectra.bounded_context.retrieval.application.handlers.commands import (
     DropCollectionHandler,
     RepairCollectionsHandler,
@@ -56,6 +62,18 @@ class RetrievalHandlers:
     list_collections: ListCollectionsHandler
     check: CheckCollectionProfileHandler
     repair: RepairCollectionsHandler
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ConfigurationHandlers:
+    """The wired handlers of the configuration context."""
+
+    init: InitEnvFileHandler
+
+
+def build_configuration() -> ConfigurationHandlers:
+    """Wire the configuration handlers over the local filesystem."""
+    return ConfigurationHandlers(init=InitEnvFileHandler(writer=FilesystemEnvFileWriterAdapter()))
 
 
 def build_embedder(environment: Environment) -> IEmbedder:

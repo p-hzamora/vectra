@@ -7,6 +7,7 @@ from .collections_response import (
     CollectionResponse,
     DropResponse,
 )
+from .config_init_response import ConfigInitResponse
 from .config_show_response import ConfigShowResponse
 from .error_response import ErrorDetail, ErrorResponse
 from .i_renderable_response import IRenderableResponse
@@ -32,6 +33,7 @@ __all__ = [
     "SearchHitResponse",
     "SearchResponse",
     "SyncResponse",
+    "ConfigInitResponse",
     "ConfigShowResponse",
     "ErrorDetail",
     "ErrorResponse",

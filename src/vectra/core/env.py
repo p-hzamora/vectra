@@ -37,6 +37,14 @@ class Environment:
     retrieval: RetrievalSettings
 
 
+def resolve_env_file(env_file: Path | None = None) -> Path:
+    """The `.env` path an invocation uses: `env_file`, else `~/.config/vectra/.env`.
+
+    Unlike `load_environment` it reads nothing, so it works when the file is invalid.
+    """
+    return (env_file or default_env_file()).expanduser()
+
+
 def load_environment(env_file: Path | None = None) -> Environment:
     """Read settings from `env_file` (default `~/.config/vectra/.env`) and the environment.
 
@@ -51,7 +59,7 @@ def load_environment(env_file: Path | None = None) -> Environment:
     Raises:
         InvalidConfigurationError: A value failed validation.
     """
-    path: Path = (env_file or default_env_file()).expanduser()
+    path: Path = resolve_env_file(env_file)
     problems: list[JsonValue] = []
     runtime: RuntimeSettings | None = _load(RuntimeSettings, path, problems)
     retrieval: RetrievalSettings | None = _load(RetrievalSettings, path, problems)
