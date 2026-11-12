@@ -32,6 +32,13 @@ from .retrieval_errors import (
     SourceRootInvalidError,
     VectorStoreError,
 )
+from .updates_errors import (
+    InstallerNotDetectedError,
+    InvalidVersionError,
+    NoReleasePublishedError,
+    ReleaseSourceUnavailableError,
+    UpgradeFailedError,
+)
 
 __all__ = [
     "AppException",
@@ -48,16 +55,21 @@ __all__ = [
     "EnvFileExistsError",
     "ExitCodeEnum",
     "InfrastructureException",
+    "InstallerNotDetectedError",
     "InterfaceException",
     "InvalidCollectionNameError",
     "InvalidConfigurationError",
     "InvalidRetrievalValueError",
     "InvalidSearchQueryError",
     "InvalidSourcePathError",
+    "InvalidVersionError",
     "MassDeleteRefusedError",
     "NewRootRequiresRebuildError",
+    "NoReleasePublishedError",
+    "ReleaseSourceUnavailableError",
     "SkillGuideNotFoundError",
     "SourceRootInvalidError",
+    "UpgradeFailedError",
     "UsageError",
     "VectorStoreError",
 ]
