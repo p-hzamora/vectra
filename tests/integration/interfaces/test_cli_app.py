@@ -70,6 +70,32 @@ def test_config_show_reads_the_env_file(capsys: pytest.CaptureFixture[str], tmp_
     assert f"data dir: {tmp_path / 'index'}" in capsys.readouterr().out
 
 
+def test_config_init_writes_the_template_once(
+    capsys: pytest.CaptureFixture[str], isolated_home: Path
+) -> None:
+    env_file: Path = isolated_home / "config" / "vectra" / ".env"
+    assert run(["config", "init", "--json"]) == 0
+    assert _json(capsys)["result"] == {"env_file": str(env_file), "overwritten": False}
+    assert "# VECTRA_DATA_DIR=" in env_file.read_text(encoding="utf-8")
+    assert run(["config", "show"]) == 0
+    assert "missing" not in capsys.readouterr().out
+
+    assert run(["config", "init", "--json"]) == 1
+    assert _json(capsys)["error"]["code"] == "CONFIGURATION_101_ENV_FILE_EXISTS"
+
+    env_file.write_text("custom\n", encoding="utf-8")
+    assert run(["config", "init", "--force"]) == 0
+    assert capsys.readouterr().out == f"overwrote {env_file}\n"
+    assert "custom" not in env_file.read_text(encoding="utf-8")
+
+
+def test_config_init_honours_env_file(capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:
+    target: Path = tmp_path / "nested" / "work.env"
+    assert run(["--env-file", str(target), "config", "init"]) == 0
+    assert target.is_file()
+    assert capsys.readouterr().out == f"wrote {target}\n"
+
+
 def test_skills_get_returns_the_vectra_guide(capsys: pytest.CaptureFixture[str]) -> None:
     assert run(["skills", "get", "vectra", "--json"]) == 0
     result = _json(capsys)["result"]
