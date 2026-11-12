@@ -51,7 +51,7 @@ this install. `install.sh` is never executed.
 | Detected install | Command run (argv list, no shell, output captured) |
 |---|---|
 | uv tool (`.../uv/tools/vectra`) | `uv tool install --force --python '>=3.14' git+https://github.com/p-hzamora/vectra@<tag>` |
-| pipx (`.../pipx/venvs/vectra`) | `pipx install --force git+https://github.com/p-hzamora/vectra@<tag>` |
+| pipx (`.../pipx/venvs/vectra`) | `pipx install --force --python <vectra's interpreter> git+https://github.com/p-hzamora/vectra@<tag>` |
 | private venv (`$VECTRA_HOME/venv`, default `~/.local/share/vectra/venv`) | `<venv>/bin/python -m pip install --upgrade git+https://github.com/p-hzamora/vectra@<tag>` |
 
 These match what `install.sh` runs; a test compares them against the script.

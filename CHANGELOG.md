@@ -11,6 +11,28 @@ commit, and tag `vX.Y.Z`.
 
 ## [Unreleased]
 
+### Added
+
+- `vectra update` (`--check`, the default): one explicit HTTPS call to GitHub's latest release of
+  `p-hzamora/vectra`, returning `current`, `latest`, `update_available` and `upgrade_command`.
+  Only published `vX.Y.Z` releases count; no release yet is not an error. No other command
+  checks for updates.
+- `vectra update --apply --yes`: reinstalls at the latest release with the installer that owns
+  the install (uv tool, pipx or the private venv), never by running `install.sh`. Without
+  `--yes` it exits 2 (`INTERFACE_002_CONFIRMATION_REQUIRED`); editable, Windows or undetectable
+  installs are refused with the manual command. Config and indexes are untouched; run
+  `vectra collections check` afterwards.
+- Error codes `UPDATES_001_INVALID_VERSION`, `UPDATES_101_INSTALLER_NOT_DETECTED`,
+  `UPDATES_102_NO_RELEASE_PUBLISHED`, `UPDATES_201_RELEASE_SOURCE_UNAVAILABLE` and
+  `UPDATES_202_UPGRADE_FAILED`, each with `next_steps`.
+- `updates` bounded context with its own import-linter contracts.
+- Documentation `docs/commands/update.md`; agent guide and skill trigger phrases.
+
+### Fixed
+
+- `vectra config init` writes every setting commented out at its default again, as documented;
+  the template had them active, with an unexpanded `~` in `VECTRA_DATA_DIR`.
+
 ## [0.3.0] - 2026-11-12
 
 ### Added
