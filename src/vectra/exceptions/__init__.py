@@ -8,6 +8,7 @@ from .base import (
     InfrastructureException,
     InterfaceException,
 )
+from .configuration_errors import EnvFileExistsError
 from .core_errors import InvalidConfigurationError
 from .exit_code_enum import ExitCodeEnum
 from .interface_errors import (
@@ -44,6 +45,7 @@ __all__ = [
     "EmbeddingDimensionMismatchError",
     "EmbeddingModelError",
     "EmbeddingProfileMismatchError",
+    "EnvFileExistsError",
     "ExitCodeEnum",
     "InfrastructureException",
     "InterfaceException",
