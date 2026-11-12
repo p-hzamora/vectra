@@ -39,7 +39,9 @@ from vectra.interfaces.cli.responses import (
 )
 from vectra.interfaces.cli.state import cli_state
 
-collections_app: typer.Typer = typer.Typer(help="List and drop collections.", no_args_is_help=True)
+collections_app: typer.Typer = typer.Typer(
+    help="List, check and drop collections.", no_args_is_help=True
+)
 
 NameArgument = Annotated[str, typer.Argument(help="Collection name.")]
 

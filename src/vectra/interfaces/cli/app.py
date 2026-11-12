@@ -16,7 +16,8 @@ from .state import CliState
 
 PROGRAM: str = "vectra"
 EPILOG: str = (
-    "Every command accepts --json and --help. "
+    "Every command accepts --json and --help; command groups (config, collections, skills) "
+    "take --json on their subcommands, e.g. `vectra collections list --json`. "
     "Exit codes: 0 ok, 1 the operation failed, 2 invalid command line."
 )
 
@@ -71,12 +72,16 @@ def _usage_error(error: typer.TyperException, argv: Sequence[str]) -> int:
     format_message: object = getattr(error, "format_message", None)
     message: str = str(format_message() if callable(format_message) else error)
     command_path: str = str(getattr(context, "command_path", PROGRAM))
-    output.emit_error(
-        UsageError(
-            message,
-            next_steps=[f"Run `{command_path} --help` to see the arguments and options."],
+    next_steps: list[str] = [f"Run `{command_path} --help` to see the arguments and options."]
+    subcommands: object = getattr(getattr(context, "command", None), "commands", None)
+    if isinstance(subcommands, dict) and subcommands:
+        first: str = next(iter(subcommands))
+        next_steps.insert(
+            0,
+            f"`{command_path}` is a command group: give --json to a subcommand, "
+            f"e.g. `{command_path} {first} --json`.",
         )
-    )
+    output.emit_error(UsageError(message, next_steps=next_steps))
     return exit_code
 
 
@@ -99,6 +104,18 @@ def run(argv: Sequence[str]) -> int:
         except AppException as error:
             output.emit_error(error)
             return error.exit_code
+        except Exception as error:  # last resort: never leak a traceback to callers
+            output.emit_error(
+                AppException(
+                    f"Unexpected {type(error).__name__}: {error}",
+                    {"exception": type(error).__name__},
+                    next_steps=[
+                        "Re-run with the same arguments; if it persists, report this error code "
+                        "and message."
+                    ],
+                )
+            )
+            return ExitCodeEnum.FAILURE
         return result if isinstance(result, int) else ExitCodeEnum.OK
 
 

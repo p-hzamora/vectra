@@ -113,3 +113,30 @@ def test_skills_get_unknown_guide_is_a_usage_error_with_next_steps(
     assert isinstance(error, dict)
     assert error["code"] == "INTERFACE_001_SKILL_GUIDE_NOT_FOUND"
     assert error["metadata"] == {"available": ["vectra"]}
+
+
+def test_help_epilog_says_groups_take_json_on_their_subcommands(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert run(["--help"]) == 0
+    out = " ".join(capsys.readouterr().out.split())
+    assert "command groups" in out
+    assert "vectra collections list --json" in out
+
+
+@pytest.mark.parametrize("group", ["collections", "config", "skills"])
+def test_json_on_a_group_is_a_usage_error_pointing_at_its_subcommands(
+    capsys: pytest.CaptureFixture[str], group: str
+) -> None:
+    assert run([group, "--json"]) == 2
+    captured = capsys.readouterr()
+    error = json.loads(captured.out)["error"]
+    assert error["code"] == "INTERFACE_004_USAGE_ERROR"
+    assert "command group" in error["next_steps"][0]
+    assert f"vectra {group} " in error["next_steps"][0]
+    assert captured.err == ""
+
+
+def test_json_on_a_subcommand_of_a_group_works(capsys: pytest.CaptureFixture[str]) -> None:
+    assert run(["collections", "list", "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["ok"] is True
