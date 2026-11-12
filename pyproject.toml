@@ -141,6 +141,55 @@ layers = [
 ]
 
 [[tool.importlinter.contracts]]
+name = "Updates layers point inward"
+type = "layers"
+layers = [
+    "vectra.bounded_context.updates.infrastructure",
+    "vectra.bounded_context.updates.application",
+    "vectra.bounded_context.updates.domain",
+]
+
+[[tool.importlinter.contracts]]
+name = "Updates domain and application know no delivery framework, HTTP client or process runner"
+type = "forbidden"
+source_modules = [
+    "vectra.bounded_context.updates.domain",
+    "vectra.bounded_context.updates.application",
+]
+forbidden_modules = [
+    "typer",
+    "urllib",
+    "subprocess",
+    "vectra.bounded_context.updates.infrastructure",
+]
+
+[[tool.importlinter.contracts]]
+name = "Only the release source package imports urllib"
+type = "forbidden"
+source_modules = ["vectra"]
+forbidden_modules = ["urllib"]
+ignore_imports = [
+    "vectra.bounded_context.updates.infrastructure.outbound.release_source.** -> urllib",
+]
+
+[[tool.importlinter.contracts]]
+name = "Only the installer package imports subprocess"
+type = "forbidden"
+source_modules = ["vectra"]
+forbidden_modules = ["subprocess"]
+ignore_imports = [
+    "vectra.bounded_context.updates.infrastructure.outbound.installer.** -> subprocess",
+]
+
+[[tool.importlinter.contracts]]
+name = "Updates adapter packages are independent"
+type = "independence"
+modules = [
+    "vectra.bounded_context.updates.infrastructure.outbound.release_source",
+    "vectra.bounded_context.updates.infrastructure.outbound.installer",
+]
+
+[[tool.importlinter.contracts]]
 name = "Retrieval domain and application know no SDK or delivery framework"
 type = "forbidden"
 source_modules = [
@@ -205,9 +254,12 @@ forbidden_modules = [
     "vectra.bounded_context.retrieval.infrastructure",
     "vectra.bounded_context.configuration.domain",
     "vectra.bounded_context.configuration.infrastructure",
+    "vectra.bounded_context.updates.domain",
+    "vectra.bounded_context.updates.infrastructure",
 ]
 allow_indirect_imports = true
 ignore_imports = [
     "vectra.interfaces.cli.bootstrap -> vectra.bounded_context.retrieval.infrastructure.**",
     "vectra.interfaces.cli.bootstrap -> vectra.bounded_context.configuration.infrastructure.**",
+    "vectra.interfaces.cli.bootstrap -> vectra.bounded_context.updates.infrastructure.**",
 ]
