@@ -28,6 +28,7 @@ Branch on `code`, not on the message. Code groups: `CORE_` configuration,
 | Code | Exit | Meaning | Raised by |
 |---|---|---|---|
 | `CORE_001_INVALID_CONFIGURATION` | 1 | A setting in the env file or environment is invalid; `metadata.problems` lists them. | Any command that loads settings |
+| `CONFIGURATION_101_ENV_FILE_EXISTS` | 1 | `config init` found a file at the target; pass `--force` to overwrite. | `config init` |
 | `INTERFACE_001_SKILL_GUIDE_NOT_FOUND` | 2 | `skills get` named a guide this version does not ship. | `skills get` |
 | `INTERFACE_002_CONFIRMATION_REQUIRED` | 2 | `collections drop` without `--yes`. | `collections drop` |
 | `INTERFACE_003_NEW_ROOT_REQUIRES_REBUILD` | 2 | `--new-root` without `--rebuild`. | `sync` |

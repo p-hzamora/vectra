@@ -9,7 +9,8 @@ exceptions/      AppException tree, error codes, exit codes
 shared_kernel/   IHandler, JsonValue types
 utils/           FrozenObject (immutable pydantic base)
 bounded_context/
-  retrieval/     the only context
+  retrieval/     chunk, embed, index and search documents
+  configuration/ create the env file (`config init`)
     domain/          entities, value objects, policies, write repository ports
     application/     handlers, DTOs, services, ports (chunking, embedding, source, uow, read_repositories)
     infrastructure/outbound/   adapters: vector_store, embedding, chunking, source
@@ -17,7 +18,7 @@ interfaces/cli/  Typer app, commands, responses, output.py, bootstrap.py (the co
 ```
 
 `interfaces/cli/bootstrap.py` is the only place that picks concrete adapters
-(`build_retrieval`). Commands call handlers through it.
+(`build_retrieval`, `build_configuration`). Commands call handlers through it.
 
 ## Layers and contracts
 
@@ -28,7 +29,7 @@ Contracts are import-linter rules in `pyproject.toml` (`make imports`):
 - `interfaces` reads configuration only through `vectra.core.env` (not `core.configurations`
   or `pydantic_settings`).
 - `bounded_context` and `shared_kernel` import no `typer`, no `pydantic_settings`, no `vectra.core`.
-- Retrieval layers point inward: infrastructure -> application -> domain.
+- Retrieval and configuration layers point inward: infrastructure -> application -> domain.
 - Retrieval domain and application import no `lancedb`, `pyarrow`, `sentence_transformers`,
   `torch`, `transformers`, `yaml`, `typer`, nor infrastructure.
 - Only `outbound/vector_store` imports `lancedb` and `pyarrow`; only `outbound/embedding`
@@ -36,7 +37,7 @@ Contracts are import-linter rules in `pyproject.toml` (`make imports`):
   imports `yaml`.
 - The four adapter packages (`vector_store`, `embedding`, `chunking`, `source`) are independent
   of each other.
-- `interfaces` reaches retrieval domain and infrastructure only through `bootstrap`.
+- `interfaces` reaches retrieval and configuration domain and infrastructure only through `bootstrap`.
 
 ## Retrieval ports and adapters
 

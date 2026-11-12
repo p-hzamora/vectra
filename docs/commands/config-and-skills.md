@@ -1,4 +1,4 @@
-# `config show`, `skills`, and settings
+# `config show | init`, `skills`, and settings
 
 ## Choosing the env file
 
@@ -50,6 +50,20 @@ data dir: /tmp/vectra-demo/data
 ```
 
 When the file is missing the text adds ` (missing: defaults only)` after the path.
+
+## `vectra config init [--force]`
+
+Purpose: create the env file with every setting commented out at its default, so there is
+something to edit. Optional: vectra runs without a file. Writes to the file this invocation
+would read (`--env-file` or the default), creating missing folders.
+
+```text
+$ vectra config init
+wrote /Users/me/.config/vectra/.env
+```
+
+JSON result: `{"env_file": "<path>", "overwritten": false}`. An existing file fails with
+`CONFIGURATION_101_ENV_FILE_EXISTS` (exit 1) and is left alone; `--force` overwrites it.
 
 ## `vectra skills list | get NAME`
 

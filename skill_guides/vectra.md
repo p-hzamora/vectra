@@ -54,6 +54,8 @@ not covered here.
 - `vectra collections drop <name> --yes --json`: delete a collection and its index (without `--yes`
   it exits 2 and deletes nothing).
 - `vectra config show --json`: the configuration file read and the data folder.
+- `vectra config init --json`: write a commented env file template; fails with
+  `CONFIGURATION_101_ENV_FILE_EXISTS` if one exists (`--force` overwrites; only when the user asks).
 - `vectra skills list --json` / `vectra skills get <name> --json`: the guides this version ships.
 
 ## Chunks and `heading_path`
