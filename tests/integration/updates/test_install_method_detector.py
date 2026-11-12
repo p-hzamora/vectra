@@ -32,7 +32,9 @@ def test_uv_tool(tmp_path: Path) -> None:
 
 def test_pipx(tmp_path: Path) -> None:
     prefix = tmp_path / ".local" / "share" / "pipx" / "venvs" / "vectra"
-    assert detect(prefix, tmp_path) == InstallMethod(kind=InstallerKind.PIPX)
+    assert detect(prefix, tmp_path) == InstallMethod(
+        kind=InstallerKind.PIPX, python=str(prefix / "bin" / "python")
+    )
 
 
 def test_private_venv_under_the_default_home(tmp_path: Path) -> None:

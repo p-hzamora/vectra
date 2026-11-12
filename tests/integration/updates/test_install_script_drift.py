@@ -34,14 +34,14 @@ def plan_tokens(method: InstallMethod) -> list[str]:
     return list(UpgradePlanPolicy().plan(method, TAG).argv)
 
 
-def spec_free(tokens: list[str]) -> list[str]:
-    """Drop the install spec and the `--python` choice, which install.sh resolves at run time."""
+def spec_free(tokens: list[str], *, drop_python: bool = False) -> list[str]:
+    """Drop the install spec and, when asked, the `--python` choice (an interpreter path)."""
     cleaned: list[str] = []
     skip = False
     for token in tokens:
         if skip:
             skip = False
-        elif token == "--python" and "$python" in tokens:
+        elif token == "--python" and drop_python:
             skip = True
         elif token not in {"$spec", f"git+{REPO_URL}@{TAG}"}:
             cleaned.append(token)
@@ -66,8 +66,10 @@ def test_uv_command_matches() -> None:
 
 
 def test_pipx_command_matches_apart_from_the_interpreter_choice() -> None:
-    assert spec_free(plan_tokens(InstallMethod(kind=InstallerKind.PIPX))) == spec_free(
-        script_command("pipx install")
+    plan = plan_tokens(InstallMethod(kind=InstallerKind.PIPX, python="/p/bin/python"))
+    assert "--python" in plan
+    assert spec_free(plan, drop_python=True) == spec_free(
+        script_command("pipx install"), drop_python=True
     )
 
 

@@ -65,7 +65,9 @@ class ProcessInstallMethodDetectorAdapter(IInstallMethodDetector):
         if self._is_uv_tool():
             found.append(InstallMethod(kind=InstallerKind.UV))
         if self._is_pipx_venv():
-            found.append(InstallMethod(kind=InstallerKind.PIPX))
+            found.append(
+                InstallMethod(kind=InstallerKind.PIPX, python=str(self._prefix / "bin" / "python"))
+            )
         if self._is_private_venv():
             found.append(
                 InstallMethod(kind=InstallerKind.VENV, python=str(self._prefix / "bin" / "python"))

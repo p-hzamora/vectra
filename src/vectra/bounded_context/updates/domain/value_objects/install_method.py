@@ -21,14 +21,15 @@ class InstallMethod(FrozenObject):
 
     Attributes:
         kind: The installer that owns the install.
-        python: Interpreter of the private virtual environment (`VENV` only).
+        python: Interpreter vectra runs on (`VENV` and `PIPX` only): the venv to upgrade, or the
+            interpreter handed to `pipx --python` so the reinstall keeps a supported Python.
     """
 
     kind: InstallerKind
     python: str | None = None
 
     @model_validator(mode="after")
-    def _venv_has_an_interpreter(self) -> Self:
-        if self.kind is InstallerKind.VENV and not self.python:
-            raise ValueError("a venv install needs the venv interpreter")
+    def _venv_and_pipx_have_an_interpreter(self) -> Self:
+        if self.kind in {InstallerKind.VENV, InstallerKind.PIPX} and not self.python:
+            raise ValueError("a venv or pipx install needs its interpreter")
         return self

@@ -106,10 +106,10 @@ def test_plan_argv_per_method() -> None:
     policy = UpgradePlanPolicy()
     tag = ReleaseTag.parse("v1.2.3")
     uv = policy.plan(InstallMethod(kind=InstallerKind.UV), tag)
-    pipx = policy.plan(InstallMethod(kind=InstallerKind.PIPX), tag)
+    pipx = policy.plan(InstallMethod(kind=InstallerKind.PIPX, python="/p/bin/python"), tag)
     venv = policy.plan(InstallMethod(kind=InstallerKind.VENV, python="/v/bin/python"), tag)
     assert uv.argv == ("uv", "tool", "install", "--force", "--python", ">=3.14", SPEC)
-    assert pipx.argv == ("pipx", "install", "--force", SPEC)
+    assert pipx.argv == ("pipx", "install", "--force", "--python", "/p/bin/python", SPEC)
     assert venv.argv == ("/v/bin/python", "-m", "pip", "install", "--upgrade", SPEC)
     assert uv.command == f"uv tool install --force --python '>=3.14' {SPEC}"
 

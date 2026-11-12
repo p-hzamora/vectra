@@ -23,7 +23,7 @@ class UpgradePlanPolicy:
                     "uv", "tool", "install", "--force", "--python", ">=3.14", spec,
                 )  # fmt: skip
             case InstallerKind.PIPX:
-                argv = ("pipx", "install", "--force", spec)
+                argv = ("pipx", "install", "--force", "--python", str(method.python), spec)
             case InstallerKind.VENV:
                 argv = (str(method.python), "-m", "pip", "install", "--upgrade", spec)
         return UpgradePlan(argv=argv)
