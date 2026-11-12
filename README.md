@@ -15,8 +15,22 @@ vectra config show                          # the env file read and the data fol
 
 The installer uses `uv` if you have it, otherwise `pipx`, otherwise a private virtual
 environment built with Python 3.14+. From a checkout, `./install.sh` installs that checkout.
-Options, manual installs, the agent skill (`npx skills add p-hzamora/vectra --skill vectra -g`)
-and uninstalling: [docs/install.md](docs/install.md).
+Options, manual installs and uninstalling: [docs/install.md](docs/install.md).
+
+### Install the agent skill
+
+The skill teaches coding agents (Claude Code, Codex, Cursor, ...) how to use the CLI. It needs
+the `vectra` command installed first (above). Install it with the
+[`skills`](https://github.com/vercel-labs/skills) CLI, which only needs Node (`npx`):
+
+```bash
+npx skills add p-hzamora/vectra --skill vectra -g   # every project, for your user
+npx skills add p-hzamora/vectra --skill vectra      # this project only
+npx skills add ./path/to/vectra --skill vectra -g   # from a local checkout
+```
+
+It asks which agents to install for. More options (manual copy for Claude Code, other agents):
+[docs/install.md](docs/install.md).
 
 ## Develop
 
